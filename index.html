@@ -6,10 +6,10 @@
 <title>FF GEN PANEL — OB55</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
-:root{--bg:#0b0f14;--card:#121821;--line:#1e2836;--tx:#e6edf6;--mut:#7d8b9e;--ok:#22c55e;--er:#ef4444;--ac:#3b82f6}
+:root{--bg:#0b0f14;--card:#121821;--line:#1e2836;--tx:#e6edf6;--mut:#7d8b9e;--ok:#22c55e;--er:#ef4444;--ac:#3b82f6;--wr:#f59e0b}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:14px}
-h1{font-size:16px;margin:0 0 10px;letter-spacing:.5px}
+h1{font-size:15px;margin:0 0 10px}
 h1 b{color:var(--ac)}
 .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
 label{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;margin-bottom:4px}
@@ -21,6 +21,7 @@ button{cursor:pointer;border:0;border-radius:8px;padding:11px;font:inherit;font-
 .mini{background:#1b2431;color:var(--tx);font-weight:500;padding:8px;font-size:12px}
 .stats{display:flex;gap:14px;font-size:12px;color:var(--mut);flex-wrap:wrap}
 .stats b{color:var(--tx)}
+#px{font-size:11px;margin-top:6px;color:var(--mut)}
 .card{background:#0d131b;border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12.5px;word-break:break-all}
 .card .id{color:var(--ac);font-weight:700;font-size:13px}
 .card .nm{color:#f0c000;font-weight:700}
@@ -28,29 +29,29 @@ button{cursor:pointer;border:0;border-radius:8px;padding:11px;font:inherit;font-
 .card .cred{background:#0a0f15;border:1px dashed var(--line);border-radius:6px;padding:7px;margin:6px 0}
 details summary{cursor:pointer;color:var(--mut);font-size:11px}
 pre{white-space:pre-wrap;margin:6px 0 0;font-size:11px;color:#9fb0c6}
-#log{height:110px;overflow:auto;font-size:11px;color:var(--mut);background:#080c11;border:1px solid var(--line);border-radius:8px;padding:8px;white-space:pre-wrap}
-.err{color:var(--er)}
-.ok{color:var(--ok)}
+#log{height:120px;overflow:auto;font-size:11px;color:var(--mut);background:#080c11;border:1px solid var(--line);border-radius:8px;padding:8px;white-space:pre-wrap}
+.err{color:var(--er)}.ok{color:var(--ok)}.wr{color:var(--wr)}
 </style>
 </head>
 <body>
-<h1>FF <b>GEN PANEL</b> · OB55 · guest real</h1>
+<h1>FF <b>GEN PANEL</b> · OB55</h1>
 
 <div class="box">
   <div class="grid">
     <div><label>Região</label><select id="region"></select></div>
     <div><label>Estilo de nome</label><select id="nmode">
       <option value="insta">instaplay / instapleys</option>
-      <option value="rare">raros (curtos, sem número)</option>
+      <option value="rare">raros (curtos)</option>
       <option value="mix">misto</option>
     </select></div>
     <div><label>Prefixo (opcional)</label><input id="prefix" placeholder="ex: instaplay"></div>
     <div><label>Qtd (0 = infinito)</label><input id="qty" type="number" value="0" min="0"></div>
-    <div><label>Paralelo</label><input id="conc" type="number" value="3" min="1" max="12"></div>
-    <div><label>Delay ms</label><input id="delay" type="number" value="250" min="0"></div>
+    <div><label>Paralelo</label><input id="conc" type="number" value="2" min="1" max="10"></div>
+    <div><label>Delay ms</label><input id="delay" type="number" value="300" min="0"></div>
   </div>
   <button id="go">INICIAR GERAÇÃO</button>
   <button id="stop">PARAR</button>
+  <div id="px">proxies: não testados</div>
 </div>
 
 <div class="box">
@@ -69,312 +70,269 @@ pre{white-space:pre-wrap;margin:6px 0 0;font-size:11px;color:#9fb0c6}
     <button class="mini" id="clr">Limpar painel</button>
     <button class="mini" id="cpy">Copiar últimas</button>
   </div>
+  <div style="margin-top:9px">
+    <label>Proxy próprio (opcional, use <code>{u}</code>)</label>
+    <input id="own" placeholder="https://seu-worker.workers.dev/?u={u}">
+    <details style="margin-top:8px"><summary>como criar proxy próprio (100% garantido)</summary>
+<pre>1) workers.cloudflare.com → criar Worker
+2) colar o código:
+export default{async fetch(r){const q=new URL(r.url).searchParams.get("u");
+const x=await fetch(q,{method:r.method,headers:r.headers,
+body:["GET","HEAD"].includes(r.method)?null:await r.arrayBuffer()});
+const h=new Headers(x.headers);h.set("Access-Control-Allow-Origin","*");
+h.delete("content-encoding");h.delete("content-length");
+return new Response(x.body,{status:x.status,headers:h})}}
+3) publicar e colar aqui: https://SEU.workers.dev/?u={u}</pre>
+    </details>
+  </div>
 </div>
 
 <div id="out"></div>
 <div id="log"></div>
 
 <script>
-/* ---------- config ---------- */
-const OAUTH   = "https://100067.connect.garena.com";
-const MAJOR   = "https://loginbp.ppmainecoonghj.com";
-const SECRET  = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3";
-const VER     = "OB55";
-const KEY_B64 = "WWcmdGMlREV1aDYlWmNeOA==";
-const IV_B64  = "Nm95WkRyMjJFM3ljaGpNJQ==";
-const UA_MSDK = "GarenaMSDK/4.0.42(SM-A525F;Android 13;pt;BR;)";
-const UA_GAME = "Dalvik/2.1.0 (Linux; U; Android 13; SM-A525F Build/TP1A.220624.014)";
+const OAUTH="https://100067.connect.garena.com";
+const MAJOR="https://loginbp.ppmainecoonghj.com";
+const SECRET="2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3";
+const VER="OB55";
+const KEY_B64="WWcmdGMlREV1aDYlWmNeOA==";
+const IV_B64="Nm95WkRyMjJFM3ljaGpNJQ==";
+const UA_MSDK="GarenaMSDK/4.0.42(SM-A525F;Android 13;pt;BR;)";
+const UA_GAME="Dalvik/2.1.0 (Linux; U; Android 13; SM-A525F Build/TP1A.220624.014)";
+const PROBE=OAUTH+"/oauth/guest/token/grant";
 
-const REGIONS = ["BR","SAC","US","NA","ME","IND","ID","TH","VN","PK","BD","TW","RU","CIS","EUROPE","SG"];
-const sel = document.getElementById("region");
-REGIONS.forEach(r=>{const o=document.createElement("option");o.value=r;o.textContent=r;sel.appendChild(o);});
-sel.value = "BR";
+const REGIONS=["BR","SAC","US","NA","ME","IND","ID","TH","VN","PK","BD","TW","RU","CIS","EUROPE","SG"];
+const sel=document.getElementById("region");
+REGIONS.forEach(r=>{const o=document.createElement("option");o.value=r;o.textContent=r;sel.appendChild(o)});
+sel.value="BR";
 
-/* ---------- proxies (CORS) ---------- */
-const PROXIES = [
-  u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
-  u => "https://api.cors.lol/?url=" + encodeURIComponent(u),
-  u => "https://thingproxy.freeboard.io/fetch/" + u,
-  u => u
+const $=id=>document.getElementById(id);
+const hex=n=>{let s="";for(let i=0;i<n*2;i++)s+="0123456789ABCDEF"[Math.floor(Math.random()*16)];return s};
+const rnd=n=>{let s="";const c="abcdefghijklmnopqrstuvwxyz0123456789";for(let i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s};
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():hex(16);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function log(t,c){const l=$("log"),d=document.createElement("div");if(c)d.className=c;
+d.textContent="["+new Date().toLocaleTimeString("pt-BR")+"] "+t;l.appendChild(d);l.scrollTop=l.scrollHeight;
+while(l.childNodes.length>300)l.removeChild(l.firstChild)}
+
+/* ---------- transporte ---------- */
+const BUILTIN=[
+ {n:"isomorphic",f:u=>"https://cors.isomorphic-git.org/"+u},
+ {n:"corsfix",f:u=>"https://proxy.corsfix.com/?"+u},
+ {n:"cfworker",f:u=>"https://test.cors.workers.dev/?"+u},
+ {n:"corseu",f:u=>"https://cors.eu.org/"+u},
+ {n:"corsproxy",f:u=>"https://corsproxy.io/?url="+encodeURIComponent(u)},
+ {n:"yacdn",f:u=>"https://yacdn.org/proxy/"+u}
 ];
-
-/* ---------- util ---------- */
-const $ = id => document.getElementById(id);
-const rnd = n => { let s=""; const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; for(let i=0;i<n;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; };
-const hex = n => { let s=""; for(let i=0;i<n*2;i++) s+="0123456789ABCDEF"[Math.floor(Math.random()*16)]; return s; };
-const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : hex(16));
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
-
-function log(t, cls){
-  const l=$("log");
-  const d=document.createElement("div");
-  if(cls) d.className=cls;
-  d.textContent="["+new Date().toLocaleTimeString("pt-BR")+"] "+t;
-  l.appendChild(d); l.scrollTop=l.scrollHeight;
-  while(l.childNodes.length>400) l.removeChild(l.firstChild);
-}
-
-async function req(url, opts={}, tries=0){
-  let last;
-  for(let i=0;i<PROXIES.length;i++){
-    try{
-      const r = await fetch(PROXIES[i](url), opts);
-      const text = await r.text();
-      if(r.ok) return {ok:true,status:r.status,text};
-      last = {ok:false,status:r.status,text};
-      if(r.status>=400 && r.status<500 && text) return last;
-    }catch(e){ last={ok:false,status:0,text:String(e)}; }
-  }
-  return last;
-}
-const jparse = t => { try{ return JSON.parse(t); }catch(e){ return null; } };
-function deepFind(obj, keys){
-  let out=null;
-  (function walk(o){
-    if(!o||typeof o!=="object"||out) return;
-    for(const k in o){
-      if(keys.includes(k.toLowerCase()) && typeof o[k]!=="object" && o[k]!==""){ out=o[k]; return; }
-      walk(o[k]);
-    }
-  })(obj);
+let ACTIVE=[];
+function allRoutes(){
+  const out=[];
+  const own=$("own").value.trim();
+  if(own) out.push({n:"proprio",f:u=>own.replace("{u}",encodeURIComponent(u))});
+  out.push(...ACTIVE);
+  out.push({n:"direto",f:u=>u});
   return out;
+}
+async function call(url,opts={}){
+  const routes=allRoutes();
+  let last="sem rota";
+  for(const r of routes){
+    try{
+      const ctl=new AbortController();
+      const t=setTimeout(()=>ctl.abort(),15000);
+      const res=await fetch(r.f(url),{...opts,signal:ctl.signal});
+      clearTimeout(t);
+      const txt=await res.text();
+      if(res.status===0) { last=r.n+" vazio"; continue; }
+      if(res.ok || (res.status>=400 && res.status<500 && txt && txt.trim().startsWith("{"))) return {ok:res.ok,status:res.status,text:txt};
+      last=r.n+" "+res.status;
+    }catch(e){ last=r.n+" "+(e.name==="AbortError"?"timeout":"rede"); }
+  }
+  throw new Error(last);
+}
+async function probe(){
+  ACTIVE=[]; $("px").textContent="testando proxies...";
+  for(const p of BUILTIN){
+    try{
+      const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),9000);
+      const res=await fetch(p.f(PROBE),{method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"uid=1&password=1&client_id=100067&client_type=2&response_type=token",signal:ctl.signal});
+      clearTimeout(t);
+      if(res.status>=200&&res.status<500){ACTIVE.push(p);log("proxy OK: "+p.n,"ok");}
+    }catch(e){log("proxy fora: "+p.n,"wr");}
+  }
+  $("px").textContent=ACTIVE.length?"proxies ativos: "+ACTIVE.map(p=>p.n).join(", "):"nenhum proxy ativo — use proxy próprio";
+  return ACTIVE.length>0;
 }
 
 /* ---------- nomes ---------- */
-const INSTA = ["instaplay","instapleys","instaple","instaplays","instaplayy","instapleyss","insta","instazin"];
-const RAROS = ["kyo","zex","vyn","nrx","luk","zio","rax","nex","kai","vox","lyx","zek","nyx","oru","aer","ivo","ely","axl","ren","syl","haz","duo","kre","vig","sol","tor","fen","gam","izq","jax"];
-const CONS="bcdfgjklmnprstvxz", VOW="aeiouy";
-function rareName(){
-  const r=Math.random();
-  if(r<.4) return RAROS[Math.floor(Math.random()*RAROS.length)];
-  const n = 3+Math.floor(Math.random()*3);
-  let s="";
-  for(let i=0;i<n;i++) s += (i%2===0? CONS[Math.floor(Math.random()*CONS.length)] : VOW[Math.floor(Math.random()*VOW.length)]);
-  return s;
-}
+const INSTA=["instaplay","instapleys","instaple","instaplays","instaplayy","instapleyss","instazin","insta"];
+const RAROS=["kyo","zex","vyn","luk","zio","rax","nex","kai","vox","lyx","zek","nyx","oru","aer","ivo","ely","axl","ren","syl","haz","duo","kre","vig","sol","tor","fen","gam","jax","nrx"];
+const CONS="bcdfgjklmnprstvxz",VOW="aeiouy";
+function rare(){const r=Math.random();
+ if(r<.45)return RAROS[Math.floor(Math.random()*RAROS.length)];
+ const n=3+Math.floor(Math.random()*3);let s="";
+ for(let i=0;i<n;i++)s+=(i%2===0?CONS[Math.floor(Math.random()*CONS.length)]:VOW[Math.floor(Math.random()*VOW.length)]);
+ return s}
 function makeName(){
-  const mode=$("nmode").value, pref=$("prefix").value.trim();
-  if(pref) return (pref + rnd(Math.max(1, 12-pref.length))).slice(0,12);
-  if(mode==="rare") return rareName();
-  if(mode==="mix" && Math.random()<.35) return rareName();
-  const base = INSTA[Math.floor(Math.random()*INSTA.length)];
-  return (base + rnd(Math.max(1, 12-base.length))).slice(0,12);
-}
+ const pref=$("prefix").value.trim(),mode=$("nmode").value;
+ if(pref)return(pref+rnd(Math.max(1,12-pref.length))).slice(0,12);
+ if(mode==="rare")return rare();
+ if(mode==="mix"&&Math.random()<.4)return rare();
+ const b=INSTA[Math.floor(Math.random()*INSTA.length)];
+ return(b+rnd(Math.max(1,12-b.length))).slice(0,12)}
 
-/* ---------- protobuf ---------- */
-function vi(n){ const a=[]; while(n>127){ a.push((n&127)|128); n=Math.floor(n/128); } a.push(n); return a; }
+/* ---------- protobuf + aes ---------- */
+function vi(n){const a=[];while(n>127){a.push((n&127)|128);n=Math.floor(n/128)}a.push(n);return a}
 const tg=(f,w)=>vi((f<<3)|w);
-function pStr(f,s){ const b=[...new TextEncoder().encode(s)]; return [...tg(f,2),...vi(b.length),...b]; }
-function pU32(f,n){ return [...tg(f,0),...vi(n)]; }
+const pStr=(f,s)=>{const b=[...new TextEncoder().encode(s)];return[...tg(f,2),...vi(b.length),...b]};
+const pU32=(f,n)=>[...tg(f,0),...vi(n)];
+const b64b=s=>{const x=atob(s),a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a};
 function enc(bytes){
-  const key = CryptoJS.enc.Base64.parse(KEY_B64);
-  const iv  = CryptoJS.enc.Base64.parse(IV_B64);
-  const wa  = CryptoJS.lib.WordArray.create(new Uint8Array(bytes));
-  const c   = CryptoJS.AES.encrypt(wa, key, {iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
-  return new Uint8Array(CryptoJS.enc.Base64.parse(c.toString(CryptoJS.format.Base64)).words.length
-    ? Uint8Array.from(atob(c.toString(CryptoJS.format.Base64)), ch=>ch.charCodeAt(0))
-    : new Uint8Array());
-}
-function readVarint(b,i){ let r=0,s=0; while(i<b.length){ const x=b[i++]; r+=(x&127)*Math.pow(2,s); if(!(x&128)) break; s+=7; } return [r,i]; }
-function decodeProto(b){
-  const out=[]; let i=0;
-  try{
-    while(i<b.length){
-      let k; [k,i]=readVarint(b,i);
-      const f=k>>3, w=k&7;
-      if(w===0){ let v; [v,i]=readVarint(b,i); out.push({f,w,v}); }
-      else if(w===2){ let len; [len,i]=readVarint(b,i); const slice=b.slice(i,i+len); i+=len;
-        let s=""; try{ s=new TextDecoder("utf-8",{fatal:true}).decode(slice); }catch(e){ s=""; }
-        out.push({f,w,s,raw:slice}); }
-      else if(w===5){ i+=4; } else if(w===1){ i+=8; } else break;
-    }
-  }catch(e){}
-  return out;
-}
+ const k=CryptoJS.enc.Base64.parse(KEY_B64),iv=CryptoJS.enc.Base64.parse(IV_B64);
+ const c=CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(bytes),k,
+   {iv,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
+ return b64b(CryptoJS.enc.Base64.stringify(c.ciphertext))}
+function rv(b,i){let r=0,s=0;while(i<b.length){const x=b[i++];r+=(x&127)*Math.pow(2,s);if(!(x&128))break;s+=7}return[r,i]}
+function decode(b){const o=[];let i=0;try{while(i<b.length){let k;[k,i]=rv(b,i);const f=k>>3,w=k&7;
+ if(w===0){let v;[v,i]=rv(b,i);o.push({f,w,v})}
+ else if(w===2){let L;[L,i]=rv(b,i);const sl=b.slice(i,i+L);i+=L;let s="";
+  try{s=new TextDecoder("utf-8",{fatal:true}).decode(sl)}catch(e){s=""}o.push({f,w,s})}
+ else if(w===5)i+=4;else if(w===1)i+=8;else break}}catch(e){}return o}
 
 /* ---------- fluxo ---------- */
-async function register(region, name){
-  const password = hex(32);
-  const payload = {
-    client_id:100067, app_id:100067, client_secret:SECRET, client_type:2,
-    password, email:"", device_id:uuid(), response_type:"token"
-  };
-  const r = await req(OAUTH + "/api/v2/oauth:register", {
-    method:"POST",
+async function register(name){
+ const password=hex(32);
+ const bodies=[
+  {client_id:100067,client_secret:SECRET,client_type:2,password,device_id:uuid(),response_type:"token"},
+  {app_id:100067,client_id:100067,client_secret:SECRET,client_type:2,password,email:"",device_id:uuid()},
+  {client_id:100067,client_type:2,password,device_id:uuid()}
+ ];
+ let err="";
+ for(const b of bodies){
+  const r=await call(OAUTH+"/api/v2/oauth:register",{method:"POST",
     headers:{"Content-Type":"application/json; charset=utf-8","User-Agent":UA_MSDK,"Accept":"application/json"},
-    body:JSON.stringify(payload)
-  });
-  const j = jparse(r.text) || {};
-  const uid = deepFind(j,["uid","guest_uid","user_id"]);
-  const pw  = deepFind(j,["password"]) || password;
-  if(!uid) throw new Error("register " + r.status + " " + (r.text||"").slice(0,140));
-  return {uid:String(uid), password:String(pw)};
+    body:JSON.stringify(b)});
+  const j=(()=>{try{return JSON.parse(r.text)}catch(e){return null}})();
+  if(j){
+   const d=j.data||j;
+   const uid=d.uid||d.guest_uid||d.user_id||j.uid;
+   const pw=d.password||j.password||password;
+   if(uid)return{uid:String(uid),password:String(pw)};
+   err=JSON.stringify(j).slice(0,150);
+  } else err=r.status+" "+r.text.slice(0,120);
+ }
+ throw new Error("register: "+err);
 }
-
-async function grant(uid, password){
-  const body = new URLSearchParams({uid, password, client_id:"100067", client_secret:SECRET,
-    client_type:"2", response_type:"token", grant_type:"guest"}).toString();
-  const r = await req(OAUTH + "/oauth/guest/token/grant", {
-    method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded","User-Agent":UA_MSDK,"Accept":"application/json"},
-    body
-  });
-  const j = jparse(r.text) || {};
-  const data = j.data || j;
-  const at = deepFind(data,["access_token"]);
-  const oid = deepFind(data,["open_id"]);
-  if(!at) throw new Error("token " + r.status + " " + (r.text||"").slice(0,140));
-  return {access_token:String(at), open_id:String(oid||"")};
+async function grant(uid,password){
+ const body=new URLSearchParams({uid,password,client_id:"100067",client_secret:SECRET,
+  client_type:"2",response_type:"token",grant_type:"guest"}).toString();
+ const r=await call(OAUTH+"/oauth/guest/token/grant",{method:"POST",
+  headers:{"Content-Type":"application/x-www-form-urlencoded","User-Agent":UA_MSDK,"Accept":"application/json"},body});
+ const j=(()=>{try{return JSON.parse(r.text)}catch(e){return null}})();
+ const d=j?(j.data||j):{};
+ if(!d.access_token)throw new Error("token "+r.status+" "+(r.text||"").slice(0,120));
+ return{access_token:String(d.access_token),open_id:String(d.open_id||"")};
 }
-
-async function major(path, bytes){
-  const r = await req(MAJOR + path, {
-    method:"POST",
-    headers:{
-      "Content-Type":"application/octet-stream","User-Agent":UA_GAME,
-      "X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":VER,
-      "Accept-Encoding":"gzip"
-    },
-    body:bytes
-  });
-  return r;
+async function major(path,bytes){
+ return call(MAJOR+path,{method:"POST",headers:{
+  "Content-Type":"application/octet-stream","User-Agent":UA_GAME,
+  "X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":VER},body:bytes});
 }
-
-async function ffInfo(access_token){
-  try{
-    const r = await req("https://ffmconnect.live.gop.garenanow.com/user/account/ff_info?access_token="+encodeURIComponent(access_token),
-      {method:"GET", headers:{"User-Agent":UA_MSDK,"Accept":"application/json"}});
-    const j = jparse(r.text);
-    if(!j) return null;
-    const d = j.data || j;
-    return {
-      nick: deepFind(d,["nickname","nick","name"]),
-      level: deepFind(d,["level","account_level"]),
-      gold: deepFind(d,["gold","coins","coin"]),
-      dia: deepFind(d,["diamond","diamonds","gem","gems"])
-    };
-  }catch(e){ return null; }
+async function info(at){
+ try{
+  const r=await call("https://ffmconnect.live.gop.garenanow.com/user/account/ff_info?access_token="+encodeURIComponent(at),
+   {method:"GET",headers:{"User-Agent":UA_MSDK,"Accept":"application/json"}});
+  const j=JSON.parse(r.text);const d=j.data||j;
+  const g=k=>{for(const x in d)if(k.includes(x.toLowerCase())&&d[x]!==null)return d[x];return null};
+  return{nick:g(["nickname","nick","name"]),level:g(["level"]),gold:g(["gold","coins","coin"]),dia:g(["diamond","gem"])};
+ }catch(e){return null}
 }
-
 async function createOne(){
-  const region = sel.value;
-  const name = makeName();
-
-  const reg = await register(region, name);
-  const tok = await grant(reg.uid, reg.password);
-
-  // entra na conta -> fica pesquisável
-  const regBody = enc([
-    ...pStr(1, name), ...pStr(2, tok.access_token), ...pStr(3, tok.open_id),
-    ...pU32(5, 102000007), ...pU32(6, 4), ...pU32(7, 1),
-    ...pU32(13, 1), ...pStr(15, "pt")
-  ]);
-  await major("/MajorRegister?region="+region, regBody);
-
-  const loginBody = enc([
-    ...pStr(1, tok.open_id), ...pStr(2, "4"),
-    ...pStr(3, tok.access_token), ...pStr(4, "4")
-  ]);
-  const lr = await major("/MajorLogin", loginBody);
-
-  let account_id = null, nick = name, jwt = null;
-  if(lr.ok && lr.text){
-    const bin = Uint8Array.from(lr.text, c=>c.charCodeAt(0) & 0xff);
-    const fields = decodeProto(bin);
-    for(const f of fields){
-      if(f.s && f.s.startsWith("eyJ") && f.s.length>60 && !jwt) jwt = f.s;
-      if(f.s && /^\d{8,12}$/.test(f.s) && !account_id) account_id = f.s;
-      if(f.s && f.s.length>=3 && f.s.length<=12 && /^[\x20-\x7E]+$/.test(f.s) && !/^\d+$/.test(f.s) && !f.s.startsWith("eyJ")) nick = f.s;
-    }
+ const region=sel.value,name=makeName();
+ const reg=await register(name);
+ const tok=await grant(reg.uid,reg.password);
+ await major("/MajorRegister?region="+region,enc([
+  ...pStr(1,name),...pStr(2,tok.access_token),...pStr(3,tok.open_id),
+  ...pU32(5,102000007),...pU32(6,4),...pU32(7,1),...pU32(13,1),...pStr(15,"pt")]));
+ const lr=await major("/MajorLogin",enc([
+  ...pStr(1,tok.open_id),...pStr(2,"4"),...pStr(3,tok.access_token),...pStr(4,"4")]));
+ let id=null,nick=name,jwt="";
+ if(lr.text){
+  const bin=Uint8Array.from(lr.text,c=>c.charCodeAt(0)&255);
+  for(const f of decode(bin)){
+   if(f.s&&f.s.startsWith("eyJ")&&f.s.length>60&&!jwt)jwt=f.s;
+   if(f.s&&/^\d{8,12}$/.test(f.s)&&!id)id=f.s;
+   if(f.s&&f.s.length>=3&&f.s.length<=12&&/^[\x20-\x7E]+$/.test(f.s)&&!/^\d+$/.test(f.s)&&!f.s.startsWith("eyJ"))nick=f.s;
   }
-
-  const info = await ffInfo(tok.access_token);
-  if(info && info.nick) nick = info.nick;
-
-  return {
-    id: account_id || "—",
-    name: nick || name,
-    uid: reg.uid,
-    password: reg.password,
-    region,
-    level: info && info.level != null ? info.level : "—",
-    gold: info && info.gold != null ? info.gold : "—",
-    dia: info && info.dia != null ? info.dia : "—",
-    jwt: jwt || "",
-    at: new Date().toLocaleString("pt-BR")
-  };
+ }
+ const inf=await info(tok.access_token);
+ if(inf&&inf.nick)nick=inf.nick;
+ return{id:id||"—",name:nick||name,uid:reg.uid,password:reg.password,region,
+  level:inf&&inf.level!=null?inf.level:"—",gold:inf&&inf.gold!=null?inf.gold:"—",
+  dia:inf&&inf.dia!=null?inf.dia:"—",jwt,at:new Date().toLocaleString("pt-BR")};
 }
 
-/* ---------- render ---------- */
-const accs = [];
+/* ---------- ui ---------- */
+const accs=[];
 function card(a){
-  const d=document.createElement("div"); d.className="card";
-  d.innerHTML = `
-    <div>ID: <span class="id">${a.id}</span> <span class="cr">· ${a.region}</span></div>
-    <div>Nome: <span class="nm">${a.name}</span></div>
-    <div class="cred">UID: ${a.uid}<br>Senha: ${a.password}</div>
-    <div class="cr">Nível: ${a.level} · Ouro: ${a.gold} · Diamante: ${a.dia}</div>
-    <details><summary>como logar</summary><pre>1) Instale o Free Fire OB55 e abra.
-2) Toque em "Convidado/Guest" na tela de login.
+ const d=document.createElement("div");d.className="card";
+ d.innerHTML=`<div>ID: <span class="id">${a.id}</span> <span class="cr">· ${a.region}</span></div>
+ <div>Nome: <span class="nm">${a.name}</span></div>
+ <div class="cred">UID: ${a.uid}<br>Senha: ${a.password}</div>
+ <div class="cr">Nível: ${a.level} · Ouro: ${a.gold} · Diamante: ${a.dia}</div>
+ <details><summary>como logar</summary><pre>1) Abra o Free Fire OB55.
+2) Escolha "Convidado".
 3) Região: ${a.region}
 4) UID: ${a.uid}
 5) Senha: ${a.password}
-6) Entre. O ID ${a.id} já está ativo e aparece na busca.</pre></details>`;
-  $("out").prepend(d);
+6) Entre. O ID ${a.id} já está ativo na busca.</pre></details>`;
+ $("out").prepend(d);
 }
-
-let running=false, ok=0, er=0, tr=0, t0=0;
-function bump(){
-  $("s-ok").textContent=ok; $("s-er").textContent=er; $("s-try").textContent=tr;
-  const m=(Date.now()-t0)/60000;
-  $("s-rpm").textContent = m>0 ? Math.round(ok/m) : 0;
-}
-
+let running=false,ok=0,er=0,tr=0,t0=0;
+function bump(){$("s-ok").textContent=ok;$("s-er").textContent=er;$("s-try").textContent=tr;
+ const m=(Date.now()-t0)/60000;$("s-rpm").textContent=m>0?Math.round(ok/m):0}
 async function worker(){
-  const conc = Math.max(1, parseInt($("conc").value)||1);
-  const dl = Math.max(0, parseInt($("delay").value)||0);
-  const limit = parseInt($("qty").value)||0;
-  while(running){
-    if(limit && tr>=limit) { running=false; break; }
-    tr++; bump();
-    try{
-      const a = await createOne();
-      ok++; accs.push(a); card(a); bump();
-      log("OK " + a.id + " " + a.name, "ok");
-    }catch(e){
-      er++; bump();
-      log("FALHA " + String(e.message||e).slice(0,180), "err");
-    }
-    if(dl) await sleep(dl + Math.random()*dl);
+ const dl=Math.max(0,parseInt($("delay").value)||0);
+ const limit=parseInt($("qty").value)||0;
+ while(running){
+  if(limit&&tr>=limit){running=false;break}
+  tr++;bump();
+  let done=null,lastErr="";
+  for(let a=0;a<3&&!done;a++){
+   try{done=await createOne()}
+   catch(e){lastErr=String(e.message||e);await sleep(400+a*900)}
   }
-  if(!running) { $("go").style.display="block"; $("stop").style.display="none"; }
+  if(done){ok++;accs.push(done);card(done);bump();log("OK "+done.id+" "+done.name,"ok")}
+  else{er++;bump();log("FALHA "+lastErr.slice(0,160),"err")}
+  if(dl)await sleep(dl+Math.random()*dl);
+ }
+ $("go").style.display="block";$("stop").style.display="none";
 }
-
-$("go").onclick = () => {
-  if(running) return;
-  if(typeof CryptoJS==="undefined"){ log("CryptoJS não carregou — verifique a internet.","err"); return; }
-  running=true; ok=0; er=0; tr=0; t0=Date.now(); bump();
-  $("go").style.display="none"; $("stop").style.display="block";
-  log("Iniciado · região "+sel.value+" · estilo "+$("nmode").value);
-  const n = Math.max(1, parseInt($("conc").value)||1);
-  for(let i=0;i<n;i++) worker();
+$("go").onclick=async()=>{
+ if(running)return;
+ if(typeof CryptoJS==="undefined"){log("CryptoJS não carregou.","err");return}
+ $("go").style.display="none";
+ log("testando transporte...");
+ const good=await probe();
+ if(!good){log("Nenhum proxy respondeu. Cole um proxy próprio ou tente de novo.","err");
+  $("go").style.display="block";return}
+ running=true;ok=0;er=0;tr=0;t0=Date.now();bump();
+ $("stop").style.display="block";
+ log("Iniciado · "+sel.value+" · "+$("nmode").value);
+ const n=Math.max(1,parseInt($("conc").value)||1);
+ for(let i=0;i<n;i++)worker();
 };
-$("stop").onclick = () => { running=false; log("Parando..."); };
-$("clr").onclick = () => { $("out").innerHTML=""; accs.length=0; };
-$("cpy").onclick = () => navigator.clipboard.writeText(accs.slice(0,20).map(a=>`ID ${a.id} | ${a.name} | ${a.uid} | ${a.password}`).join("\n"));
-$("exp").onclick = () => {
-  const t = accs.map(a=>`ID: ${a.id}\nNome: ${a.name}\nRegião: ${a.region}\nUID: ${a.uid}\nSenha: ${a.password}\nNível: ${a.level} Ouro: ${a.gold} Dia: ${a.dia}\n${a.at}\n${"-".repeat(30)}`).join("\n");
-  dl(t, "contas_"+sel.value+"_"+Date.now()+".txt", "text/plain");
-};
-$("csv").onclick = () => {
-  const t = "id,nome,regiao,uid,senha,nivel,ouro,diamante\n" + accs.map(a=>[a.id,a.name,a.region,a.uid,a.password,a.level,a.gold,a.dia].join(",")).join("\n");
-  dl(t, "contas_"+sel.value+".csv", "text/csv");
-};
-function dl(txt, name, mime){
-  const b=new Blob([txt],{type:mime}); const u=URL.createObjectURL(b);
-  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
-}
-log("Painel pronto. Configure e clique em INICIAR.");
+$("stop").onclick=()=>{running=false;log("Parando...")};
+$("clr").onclick=()=>{$("out").innerHTML="";accs.length=0};
+$("cpy").onclick=()=>navigator.clipboard.writeText(accs.slice(0,20).map(a=>`ID ${a.id} | ${a.name} | ${a.uid} | ${a.password}`).join("\n"));
+function dl(txt,name,mime){const b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b);
+ const a=document.createElement("a");a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+$("exp").onclick=()=>dl(accs.map(a=>`ID: ${a.id}\nNome: ${a.name}\nRegião: ${a.region}\nUID: ${a.uid}\nSenha: ${a.password}\nNível: ${a.level} Ouro: ${a.gold} Dia: ${a.dia}\n${a.at}\n${"-".repeat(28)}`).join("\n"),"contas_"+sel.value+".txt","text/plain");
+$("csv").onclick=()=>dl("id,nome,regiao,uid,senha,nivel,ouro,diamante\n"+accs.map(a=>[a.id,a.name,a.region,a.uid,a.password,a.level,a.gold,a.dia].join(",")).join("\n"),"contas_"+sel.value+".csv","text/csv");
+log("Painel v2 pronto.");
 </script>
 </body>
 </html>
