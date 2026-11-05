@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FF · gerador real de conta guest</title>
+<title>FF · gerador de conta guest</title>
 <style>
 :root{--bg:#0a0a0c;--card:#111116;--line:#26262e;--txt:#ececf2;--dim:#8a8a99;--acc:#ff6b00;--gold:#ffb300;--ok:#2bd67b;--err:#ff4d4d}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -23,7 +23,7 @@ button:active{opacity:.7}button:disabled{opacity:.45;cursor:not-allowed}
 button.go{background:var(--acc);border-color:transparent;color:#fff;font-weight:700}
 button.ghost{background:transparent;color:var(--dim);padding:4px 8px;font-size:10.5px}
 .panel{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px;margin-bottom:10px}
-.warn{border:1px solid #6b4a00;background:#2a1d00;color:#ffcf66;border-radius:10px;padding:9px 11px;font-size:11px;margin-bottom:10px;line-height:1.6}
+.warn{border:1px solid #6b4a00;background:#2a1d00;color:#ffcf66;border-radius:10px;padding:9px 11px;font-size:11px;margin-bottom:10px;line-height:1.7}
 .log{background:#14141a;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:10.5px;max-height:230px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--dim)}
 .log b{color:var(--ok)}.log i{color:var(--err);font-style:normal}.log u{color:var(--gold);text-decoration:none}
 .acc{border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px;overflow:hidden}
@@ -45,6 +45,7 @@ button.ghost{background:transparent;color:var(--dim);padding:4px 8px;font-size:1
 details{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card)}
 summary{cursor:pointer;font-size:11px;color:var(--dim)}
 pre{background:#14141a;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:10.5px;margin-top:8px;color:#cfcfda}
+a{color:var(--gold)}
 </style>
 </head>
 <body>
@@ -52,12 +53,15 @@ pre{background:#14141a;border:1px solid var(--line);border-radius:8px;padding:10
 <div class="hdr">
   <div class="brand">
     <div class="mark">FF</div>
-    <div><h1>gerador real de conta guest</h1><div class="sub">api garena · v2</div></div>
+    <div><h1>gerador de conta guest</h1><div class="sub">api garena · v3</div></div>
   </div>
   <div class="route" id="route">rota: —</div>
 </div>
 
-<div class="warn" id="warn">Nenhum proxy configurado. Abra <b>proxy</b> e cole a URL do seu Worker — os proxies públicos bloqueiam o preflight e o POST morre antes de sair.</div>
+<div class="warn" id="warn">
+  Se todas as rotas falharem: <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" rel="noopener"><b>clique aqui</b></a> e aperte "Request temporary access" (1 clique, sem conta). Depois volte e gere.
+  Alternativa definitiva: Worker no rodapé.
+</div>
 
 <div class="panel">
   <div class="row">
@@ -69,34 +73,32 @@ pre{background:#14141a;border:1px solid var(--line);border-radius:8px;padding:10
         <option>CIS</option><option>BD</option>
       </select>
     </div>
-    <div class="field"><label class="lbl">qtd</label><input type="number" id="qty" value="1" min="1" max="10"></div>
-    <button class="go" id="run">criar conta real</button>
-    <button class="ghost" id="test">testar rotas</button>
+    <div class="field"><label class="lbl">qtd</label><input type="number" id="qty" value="1" min="1" max="20"></div>
+    <button class="go" id="run">criar</button>
+    <button class="ghost" id="test">testar</button>
     <button class="ghost" id="cfgbtn">proxy</button>
   </div>
 
   <div class="cfg hide" id="cfg">
     <div>
-      <label class="lbl">seu worker (recomendado)</label>
+      <label class="lbl">seu worker (mais estável)</label>
       <input id="proxy" style="width:100%;margin-top:4px" placeholder="https://seu-worker.workers.dev/?u=">
     </div>
     <div>
-      <label class="lbl">chave corsproxy.io (opcional)</label>
-      <input id="ckey" style="width:100%;margin-top:4px" placeholder="x-cors-api-key">
+      <label class="lbl">chave corsproxy.io</label>
+      <input id="ckey" style="width:100%;margin-top:4px" placeholder="opcional">
     </div>
-    <div class="note">O Worker aceita POST e responde o OPTIONS — é o único jeito confiável. Código no rodapé da página.</div>
   </div>
 
-  <div class="log" id="log" style="margin-top:10px">[pronto] use "testar rotas" antes de criar</div>
+  <div class="log" id="log" style="margin-top:10px">[pronto]</div>
   <div class="toast" id="toast"></div>
-  <div class="note">register → token grant → MajorRegister → MajorLogin. Devolve nick, UID real e senha.</div>
 </div>
 
 <div id="out"><div class="empty" id="empty">nenhuma conta criada ainda</div></div>
 
 <details>
-<summary>código do Cloudflare Worker (proxy)</summary>
-<pre>export default {
+<summary>código do Cloudflare Worker</summary>
+<pre id="wk">export default {
   async fetch(request) {
     const cors = {
       "Access-Control-Allow-Origin": "*",
@@ -106,8 +108,7 @@ pre{background:#14141a;border:1px solid var(--line);border-radius:8px;padding:10
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const u = new URL(request.url).searchParams.get("u");
     if (!u) return new Response("uso: ?u=url", { status: 400, headers: cors });
-    const target = decodeURIComponent(u);
-    const res = await fetch(target, {
+    const res = await fetch(decodeURIComponent(u), {
       method: request.method,
       headers: request.headers,
       body: request.method === "GET" ? null : request.body
@@ -118,7 +119,7 @@ pre{background:#14141a;border:1px solid var(--line);border-radius:8px;padding:10
     return out;
   }
 };</pre>
-<div class="note">Workers &amp; Pages → Create Worker → cola → Deploy → copie a URL e use no formato <code>https://nome.sub.workers.dev/?u=</code>.</div>
+<button class="ghost" id="copywk">copiar worker</button>
 </details>
 
 <script>
@@ -134,18 +135,21 @@ var U_MLOG="https://loginbp.ggblueshark.com/MajorLogin";
 var OB="OB54";
 var ROUTES=[
   {n:"corsproxy.io",w:function(u){return "https://corsproxy.io/?url="+encodeURIComponent(u)}},
+  {n:"cors-anywhere",w:function(u){return "https://cors-anywhere.herokuapp.com/"+u}},
   {n:"corsfix",w:function(u){return "https://proxy.corsfix.com/?"+u}},
+  {n:"isomorphic",w:function(u){return "https://cors.isomorphic-git.org/"+u}},
+  {n:"cors.eu.org",w:function(u){return "https://cors.eu.org/"+u}},
   {n:"cors.lol",w:function(u){return "https://api.cors.lol/?url="+encodeURIComponent(u)}},
   {n:"workers.dev",w:function(u){return "https://test.cors.workers.dev/?"+u}},
+  {n:"allorigins",w:function(u){return "https://api.allorigins.win/raw?url="+encodeURIComponent(u)}},
   {n:"thingproxy",w:function(u){return "https://thingproxy.freeboard.io/fetch/"+u}},
-  {n:"direto",w:function(u){return u}},
-  {n:"codetabs",w:function(u){return "https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(u)}}
+  {n:"direto",w:function(u){return u}}
 ];
+var PF={401:1,403:1,407:1,429:1,520:1,521:1,522:1,523:1};
 var custom=localStorage.getItem("ffgen_proxy")||"", ckey=localStorage.getItem("ffgen_ckey")||"";
-var routeIdx=-1, logEl=$("log"), toastEl=$("toast"), out=$("out"), empty=$("empty");
-if(custom)$("proxy").value=custom;
-if(ckey)$("ckey").value=ckey;
-function syncWarn(){ $("warn").classList.toggle("hide", !!custom) }
+var lastRoute=parseInt(localStorage.getItem("ffgen_route")||"-9",10);
+var logEl=$("log"), toastEl=$("toast"), out=$("out"), empty=$("empty");
+if(custom)$("proxy").value=custom; if(ckey)$("ckey").value=ckey;
 
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function log(t,c){var m={ok:"b",err:"i",warn:"u"}[c]||"";var q=m?"<"+m+">":"",e=m?"</"+m+">":"";
@@ -182,72 +186,56 @@ function xorOpen(id){var b=new TextEncoder().encode(id),r=new Uint8Array(b.lengt
   for(var i=0;i<b.length;i++)r[i]=b[i]^XK[i%XK.length]^48;return r}
 
 function wrap(u,i){return i===-1?custom+encodeURIComponent(u):ROUTES[i].w(u)}
-function baseHeaders(){
-  var h={"Content-Type":"application/x-www-form-urlencoded"};
-  if(ckey)h["x-cors-api-key"]=ckey;
-  return h;
-}
-async function post(url,body,extra){
-  var order=[];if(custom)order.push(-1);
-  for(var i=0;i<ROUTES.length;i++)order.push(i);
-  var errs=[];
-  for(var k=0;k<order.length;k++){
-    var idx=order[k];
-    var headers=Object.assign({},baseHeaders(),extra||{});
-    try{
-      var r=await fetch(wrap(url,idx),{method:"POST",headers:headers,body:body,mode:"cors",cache:"no-store"});
-      if(idx===-1)$("route").textContent="rota: worker próprio";
-      else if(idx!==routeIdx){routeIdx=idx;$("route").textContent="rota: "+ROUTES[idx].n}
-      return r;
-    }catch(e){errs.push((idx===-1?"worker":ROUTES[idx].n)+" → "+e.message)}
-  }
-  throw new Error("nenhuma rota passou | "+errs.join(" | "));
-}
+function hdrs(extra){var h={"Content-Type":"application/x-www-form-urlencoded"};if(ckey)h["x-cors-api-key"]=ckey;return Object.assign(h,extra||{})}
 
-async function testar(){
-  log("testando rotas com OPTIONS/POST de sondagem...");
-  var order=[];if(custom)order.push(-1);
-  for(var i=0;i<ROUTES.length;i++)order.push(i);
-  for(var k=0;k<order.length;k++){
-    var idx=order[k],nome=idx===-1?"worker próprio":ROUTES[idx].n;
-    try{
-      var r=await fetch(wrap(U_REG,idx),{method:"POST",headers:Object.assign({},baseHeaders(),{"Accept":"application/json"}),body:"password=x&client_type=2&source=2&app_id="+CID,mode:"cors",cache:"no-store"});
-      var t=await r.text();
-      if(r.status<500)log(nome+" → respondeu "+r.status+(t.indexOf("1005")>-1?" (GET-only)":"")+" ok","ok");
-      else log(nome+" → HTTP "+r.status,"warn");
-    }catch(e){log(nome+" → "+e.message,"err")}
-  }
-  log("teste concluído","ok");
+function racePost(url,body,extra){
+  var targets=[];
+  if(custom)targets.push(-1);
+  if(lastRoute>=0&&lastRoute<ROUTES.length&&!custom)targets.push(lastRoute);
+  for(var i=0;i<ROUTES.length;i++)if(targets.indexOf(i)<0)targets.push(i);
+  return new Promise(function(res,rej){
+    var left=targets.length,errs=[],done=false;
+    if(!left)return rej(new Error("sem rotas"));
+    targets.forEach(function(i){
+      var ctl=new AbortController(),to=setTimeout(function(){try{ctl.abort()}catch(e){}},7000);
+      fetch(wrap(url,i),{method:"POST",headers:hdrs(extra),body:body,mode:"cors",cache:"no-store",signal:ctl.signal})
+        .then(function(r){clearTimeout(to);if(done)return;
+          if(PF[r.status]){errs.push((i<0?"worker":ROUTES[i].n)+"→"+r.status);if(!--left)rej(new Error("rotas falharam | "+errs.join(" | ")));return}
+          done=true;lastRoute=i;localStorage.setItem("ffgen_route",String(i));
+          $("route").textContent="rota: "+(i<0?"worker":ROUTES[i].n);res(r)})
+        .catch(function(e){clearTimeout(to);if(done)return;
+          errs.push((i<0?"worker":ROUTES[i].n)+"→"+(e.name==="AbortError"?"timeout":e.message));
+          if(!--left)rej(new Error("rotas falharam | "+errs.join(" | ")))});
+    });
+  });
 }
 
 async function criar(region,nick){
   var pwd=String(1+rnd(9))+digits(9), ph=await sha256h(pwd);
   var body="password="+ph+"&client_type=2&source=2&app_id="+CID;
   var sig=await hmac(SECRET,body);
-  var r1=await post(U_REG,body,{"Authorization":"Signature "+sig,"Accept":"application/json"});
+  var r1=await racePost(U_REG,body,{"Authorization":"Signature "+sig,"Accept":"application/json"});
   var t1=await r1.text();
-  if(r1.status!==200)throw new Error("register HTTP "+r1.status+" · "+t1.slice(0,100));
-  var j1;try{j1=JSON.parse(t1)}catch(e){throw new Error("register inválido: "+t1.slice(0,100))}
-  var uid=j1.uid;if(!uid)throw new Error("register sem uid (rota pode ser GET-only)");
-  log("conta garena criada · uid "+uid,"ok");
+  if(r1.status!==200)throw new Error("register "+r1.status+" "+t1.slice(0,80));
+  var j1;try{j1=JSON.parse(t1)}catch(e){throw new Error("register inválido")}
+  var uid=j1.uid;if(!uid)throw new Error("register sem uid");
+  log("garena uid "+uid,"ok");
 
   var gb="uid="+uid+"&password="+ph+"&response_type=token&client_type=2&client_secret="+SECRET+"&client_id="+CID;
-  var r2=await post(U_GRANT,gb,{"Accept":"application/json"});
+  var r2=await racePost(U_GRANT,gb,{"Accept":"application/json"});
   var t2=await r2.text();
-  if(r2.status!==200)throw new Error("grant HTTP "+r2.status+" · "+t2.slice(0,100));
+  if(r2.status!==200)throw new Error("grant "+r2.status+" "+t2.slice(0,80));
   var j2=JSON.parse(t2),at=j2.access_token,oid=j2.open_id;
   if(!at||!oid)throw new Error("grant sem token");
-  log("token emitido · open_id "+oid,"ok");
+  log("token ok","ok");
 
-  var parcial={nick:nick,uid:uid,pass:pwd,openId:oid,region:region,at:new Date().toLocaleString("pt-BR"),accountUid:null};
-
+  var p={nick:nick,uid:uid,pass:pwd,openId:oid,region:region,at:new Date().toLocaleString("pt-BR"),accountUid:null};
+  var h3={"Authorization":"Bearer "+at,"X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":OB,"Content-Type":"application/octet-stream"};
   try{
-    var h3={"Authorization":"Bearer "+at,"X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":OB,"Content-Type":"application/octet-stream"};
     var p3=encode({1:nick,2:at,3:oid,5:102000007,6:4,7:1,13:1,14:xorOpen(oid),15:region,16:1});
-    var r3=await post(U_MREG,await aesEnc(p3),h3);
-    if(r3.status!==200)throw new Error("MajorRegister HTTP "+r3.status);
-    log("perfil registrado com nick "+nick,"ok");
-
+    var r3=await racePost(U_MREG,await aesEnc(p3),h3);
+    if(r3.status!==200)throw new Error("MajorRegister "+r3.status);
+    log("perfil criado","ok");
     var p4=encode({3:new Date().toISOString().replace("T"," ").slice(0,19),4:"free fire",5:1,7:"1.128.2",
       8:"Android OS 9 / API-28",9:"Handheld",10:"Vivo",11:"WIFI",12:1080,13:1920,14:"280",
       15:"ARM64 FP ASIMD AES VMH | 2865 | 4",16:3003,17:"Adreno (TM) 640",18:"OpenGL ES 3.1 v1.46",
@@ -260,75 +248,59 @@ async function criar(region,nick){
       92:13564,93:"android",
       94:"KqsHTymw5/5GB23YGniUYN2/q47GATrq7eFeRatf0NkwLKEMQ0PK5BKEk72dPflAxUlEBir6Vtey83XqF593qsl8hwY=",
       95:110009,97:1,98:1,99:"2",100:"2"});
-    var r4=await post(U_MLOG,await aesEnc(p4),h3);
+    var r4=await racePost(U_MLOG,await aesEnc(p4),h3);
     if(r4.status===200){
-      var raw=new Uint8Array(await r4.arrayBuffer()),plain;
-      try{plain=await aesDec(raw)}catch(e){plain=raw}
-      var d=decode(plain);
-      if(d[1]){parcial.accountUid=String(d[1]);log("MajorLogin ok · UID REAL "+d[1],"ok")}
+      var raw=new Uint8Array(await r4.arrayBuffer()),pl;
+      try{pl=await aesDec(raw)}catch(e){pl=raw}
+      var d=decode(pl);
+      if(d[1]){p.accountUid=String(d[1]);log("UID REAL "+d[1],"ok")}
     }
-    if(!parcial.accountUid)log("login não retornou UID","warn");
-  }catch(e){
-    parcial.erro=e.message;
-    log("etapa final falhou · "+e.message+" (guardado parcial)","warn");
-  }
-  return parcial;
+  }catch(e){p.erro=e.message;log("final falhou · "+e.message,"warn")}
+  return p;
 }
 
 function card(a){
   var d=document.createElement("div");d.className="acc";
-  var txt="NICK: "+a.nick+"\nID: "+(a.accountUid||"não confirmado")+"\nSENHA: "+a.pass+"\nREGIAO: "+a.region+
-    "\nGARENA UID: "+a.uid+"\nOPEN_ID: "+a.openId+"\nCRIADA: "+a.at+"\n";
-  d.innerHTML='<div class="top"><span>'+(a.accountUid?'<span class="ok">conta real criada</span>':'<span style="color:var(--gold)">parcial — sem ID</span>')+
+  var txt="NICK: "+a.nick+"\nID: "+(a.accountUid||"não confirmado")+"\nSENHA: "+a.pass+"\nREGIAO: "+a.region+"\nGARENA UID: "+a.uid+"\nOPEN_ID: "+a.openId+"\n"+a.at;
+  d.innerHTML='<div class="top"><span>'+(a.accountUid?'<span class="ok">criada</span>':'<span style="color:var(--gold)">parcial</span>')+
     '</span><span style="font-size:10px;color:var(--dim)">'+esc(a.at)+'</span></div>'+
     '<div class="fr"><span class="k">nick</span><span class="v">'+esc(a.nick)+'</span></div>'+
     '<div class="fr"><span class="k">id</span><span class="v big">'+esc(a.accountUid||"—")+'</span></div>'+
     '<div class="fr"><span class="k">senha</span><span class="v">'+esc(a.pass)+'</span></div>'+
-    '<div class="fr"><span class="k">região</span><span class="v">'+esc(a.region)+'</span></div>'+
     '<div class="fr"><span class="k">garena uid</span><span class="v">'+esc(a.uid)+'</span></div>'+
-    '<div class="acts"><button class="ghost" data-c="'+esc(txt)+'">copiar tudo</button>'+
-    '<button class="ghost" data-d="'+esc(txt)+'">baixar .txt</button>'+
+    '<div class="acts"><button class="ghost" data-c="'+esc(txt)+'">copiar</button>'+
+    '<button class="ghost" data-d="'+esc(txt)+'">baixar</button>'+
     (a.accountUid?'<button class="ghost" data-u="'+esc(a.accountUid)+'">copiar id</button>':'')+'</div>';
   return d;
 }
 out.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
   if(b.dataset.c)copy(b.dataset.c);
   if(b.dataset.u)copy(b.dataset.u);
-  if(b.dataset.d){var m=(b.dataset.d.match(/ID: (\d+)/)||[,"conta"])[1];dl("conta_"+m+".txt",b.dataset.d);toast("baixado")}});
+  if(b.dataset.d){dl("conta_"+((b.dataset.d.match(/ID: (\d+)/)||[,"x"])[1])+".txt",b.dataset.d);toast("baixado")}});
 
 function nickAuto(){var w=["Sniper","Lobo","Ghost","Fenix","Draco","Titan","Blaze","Sombra","Caveira","Pantera","Cobra","Alfa","Zero","Orion","Hades"];
   return "x"+w[rnd(w.length)]+(10+rnd(89))}
 
 async function run(){
   var btn=$("run");btn.disabled=true;
-  var qty=Math.max(1,Math.min(10,parseInt($("qty").value||"1",10)));
-  var region=$("region").value,base=$("nick").value.trim();
-  log("iniciando "+qty+" conta(s) · região "+region);
-  var ok=0;
+  var qty=Math.max(1,Math.min(20,parseInt($("qty").value||"1",10)));
+  var region=$("region").value,base=$("nick").value.trim(),ok=0;
+  log("gerando "+qty+" · "+region);
   for(var i=0;i<qty;i++){
     var nick=qty===1&&base?base:(base?base+i+1:nickAuto());
-    log("criando conta "+nick+"...");
-    try{
-      var a=await criar(region,nick);
-      empty.classList.add("hide");
-      out.insertBefore(card(a),out.firstChild);
-      save(a);ok++;
-    }catch(e){log("falhou · "+e.message,"err");console.error(e)}
-    if(i<qty-1)await new Promise(function(r){setTimeout(r,700)});
+    try{var a=await criar(region,nick);empty.classList.add("hide");out.insertBefore(card(a),out.firstChild);save(a);ok++}
+    catch(e){log("falhou · "+e.message,"err")}
   }
-  log(ok+" de "+qty+" criada(s)","ok");
-  btn.disabled=false;
+  log(ok+"/"+qty+" ok","ok");btn.disabled=false;
 }
 $("run").addEventListener("click",run);
-$("test").addEventListener("click",testar);
 $("cfgbtn").addEventListener("click",function(){$("cfg").classList.toggle("hide")});
-$("proxy").addEventListener("input",function(){custom=this.value.trim();localStorage.setItem("ffgen_proxy",custom);syncWarn()});
+$("proxy").addEventListener("input",function(){custom=this.value.trim();localStorage.setItem("ffgen_proxy",custom)});
 $("ckey").addEventListener("input",function(){ckey=this.value.trim();localStorage.setItem("ffgen_ckey",ckey)});
+$("copywk").addEventListener("click",function(){copy($("wk").textContent)});
 
-function save(a){try{var h=JSON.parse(localStorage.getItem("ffgen_real")||"[]");h.unshift(a);
-  localStorage.setItem("ffgen_real",JSON.stringify(h.slice(0,25)))}catch(e){}}
-(function(){syncWarn();try{var h=JSON.parse(localStorage.getItem("ffgen_real")||"[]");
-  if(h.length){empty.classList.add("hide");h.forEach(function(a){out.appendChild(card(a))})}}catch(e){}})();
+function save(a){try{var h=JSON.parse(localStorage.getItem("ffgen_real")||"[]");h.unshift(a);localStorage.setItem("ffgen_real",JSON.stringify(h.slice(0,25)))}catch(e){}}
+(function(){try{var h=JSON.parse(localStorage.getItem("ffgen_real")||"[]");if(h.length){empty.classList.add("hide");h.forEach(function(a){out.appendChild(card(a))})}}catch(e){}})();
 })();
 </script>
 </body>
