@@ -51,7 +51,7 @@ pre{white-space:pre-wrap;margin:6px 0 0;font-size:11px;color:#9fb0c6}
   </div>
   <button id="go">INICIAR GERAÇÃO</button>
   <button id="stop">PARAR</button>
-  <div id="px">proxies: não testados</div>
+  <div id="px">proxy: pronto</div>
 </div>
 
 <div class="box">
@@ -71,19 +71,8 @@ pre{white-space:pre-wrap;margin:6px 0 0;font-size:11px;color:#9fb0c6}
     <button class="mini" id="cpy">Copiar últimas</button>
   </div>
   <div style="margin-top:9px">
-    <label>Proxy próprio (opcional, use <code>{u}</code>)</label>
-    <input id="own" placeholder="https://seu-worker.workers.dev/?u={u}">
-    <details style="margin-top:8px"><summary>como criar proxy próprio (100% garantido)</summary>
-<pre>1) workers.cloudflare.com → criar Worker
-2) colar o código:
-export default{async fetch(r){const q=new URL(r.url).searchParams.get("u");
-const x=await fetch(q,{method:r.method,headers:r.headers,
-body:["GET","HEAD"].includes(r.method)?null:await r.arrayBuffer()});
-const h=new Headers(x.headers);h.set("Access-Control-Allow-Origin","*");
-h.delete("content-encoding");h.delete("content-length");
-return new Response(x.body,{status:x.status,headers:h})}}
-3) publicar e colar aqui: https://SEU.workers.dev/?u={u}</pre>
-    </details>
+    <label>Proxy (use {u})</label>
+    <input id="own">
   </div>
 </div>
 
@@ -100,6 +89,7 @@ const IV_B64="Nm95WkRyMjJFM3ljaGpNJQ==";
 const UA_MSDK="GarenaMSDK/4.0.42(SM-A525F;Android 13;pt;BR;)";
 const UA_GAME="Dalvik/2.1.0 (Linux; U; Android 13; SM-A525F Build/TP1A.220624.014)";
 const PROBE=OAUTH+"/oauth/guest/token/grant";
+const OWN_DEFAULT="https://autumn-haze-b91a.pcdgames90.workers.dev/?u={u}";
 
 const REGIONS=["BR","SAC","US","NA","ME","IND","ID","TH","VN","PK","BD","TW","RU","CIS","EUROPE","SG"];
 const sel=document.getElementById("region");
@@ -107,6 +97,9 @@ REGIONS.forEach(r=>{const o=document.createElement("option");o.value=r;o.textCon
 sel.value="BR";
 
 const $=id=>document.getElementById(id);
+$("own").value=localStorage.getItem("ff_proxy")||OWN_DEFAULT;
+$("own").onchange=()=>localStorage.setItem("ff_proxy",$("own").value.trim());
+
 const hex=n=>{let s="";for(let i=0;i<n*2;i++)s+="0123456789ABCDEF"[Math.floor(Math.random()*16)];return s};
 const rnd=n=>{let s="";const c="abcdefghijklmnopqrstuvwxyz0123456789";for(let i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s};
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():hex(16);
@@ -116,58 +109,58 @@ function log(t,c){const l=$("log"),d=document.createElement("div");if(c)d.classN
 d.textContent="["+new Date().toLocaleTimeString("pt-BR")+"] "+t;l.appendChild(d);l.scrollTop=l.scrollHeight;
 while(l.childNodes.length>300)l.removeChild(l.firstChild)}
 
-/* ---------- transporte ---------- */
 const BUILTIN=[
  {n:"isomorphic",f:u=>"https://cors.isomorphic-git.org/"+u},
  {n:"corsfix",f:u=>"https://proxy.corsfix.com/?"+u},
  {n:"cfworker",f:u=>"https://test.cors.workers.dev/?"+u},
- {n:"corseu",f:u=>"https://cors.eu.org/"+u},
- {n:"corsproxy",f:u=>"https://corsproxy.io/?url="+encodeURIComponent(u)},
- {n:"yacdn",f:u=>"https://yacdn.org/proxy/"+u}
+ {n:"corseu",f:u=>"https://cors.eu.org/"+u}
 ];
 let ACTIVE=[];
-function allRoutes(){
-  const out=[];
-  const own=$("own").value.trim();
-  if(own) out.push({n:"proprio",f:u=>own.replace("{u}",encodeURIComponent(u))});
-  out.push(...ACTIVE);
-  out.push({n:"direto",f:u=>u});
-  return out;
-}
+function ownRoute(){const o=$("own").value.trim();return o?{n:"proprio",f:u=>o.replace("{u}",encodeURIComponent(u))}:null}
+function routes(){const r=[];const o=ownRoute();if(o)r.push(o);r.push(...ACTIVE);r.push({n:"direto",f:u=>u});return r}
+
 async function call(url,opts={}){
-  const routes=allRoutes();
-  let last="sem rota";
-  for(const r of routes){
-    try{
-      const ctl=new AbortController();
-      const t=setTimeout(()=>ctl.abort(),15000);
-      const res=await fetch(r.f(url),{...opts,signal:ctl.signal});
-      clearTimeout(t);
-      const txt=await res.text();
-      if(res.status===0) { last=r.n+" vazio"; continue; }
-      if(res.ok || (res.status>=400 && res.status<500 && txt && txt.trim().startsWith("{"))) return {ok:res.ok,status:res.status,text:txt};
-      last=r.n+" "+res.status;
-    }catch(e){ last=r.n+" "+(e.name==="AbortError"?"timeout":"rede"); }
-  }
-  throw new Error(last);
+ let last="sem rota";
+ for(const r of routes()){
+  try{
+   const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),15000);
+   const res=await fetch(r.f(url),{...opts,signal:ctl.signal});clearTimeout(t);
+   const txt=await res.text();
+   if(res.ok||(res.status>=400&&res.status<500&&txt.trim().startsWith("{")))return{ok:res.ok,status:res.status,text:txt};
+   last=r.n+" "+res.status;
+  }catch(e){last=r.n+" "+(e.name==="AbortError"?"timeout":"rede")}
+ }
+ throw new Error(last);
 }
 async function probe(){
-  ACTIVE=[]; $("px").textContent="testando proxies...";
-  for(const p of BUILTIN){
-    try{
-      const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),9000);
-      const res=await fetch(p.f(PROBE),{method:"POST",
-        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-        body:"uid=1&password=1&client_id=100067&client_type=2&response_type=token",signal:ctl.signal});
-      clearTimeout(t);
-      if(res.status>=200&&res.status<500){ACTIVE.push(p);log("proxy OK: "+p.n,"ok");}
-    }catch(e){log("proxy fora: "+p.n,"wr");}
-  }
-  $("px").textContent=ACTIVE.length?"proxies ativos: "+ACTIVE.map(p=>p.n).join(", "):"nenhum proxy ativo — use proxy próprio";
-  return ACTIVE.length>0;
+ ACTIVE=[];
+ const o=ownRoute();
+ if(o){
+  try{
+   const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),9000);
+   const res=await fetch(o.f(PROBE),{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:"uid=1&password=1&client_id=100067&client_type=2&response_type=token",signal:ctl.signal});
+   clearTimeout(t);
+   if(res.status>=200&&res.status<500){ACTIVE.push(o);$("px").textContent="proxy próprio: OK";return true}
+   log("proxy próprio respondeu "+res.status,"wr");
+  }catch(e){log("proxy próprio falhou","wr")}
+ }
+ $("px").textContent="testando proxies públicos...";
+ for(const p of BUILTIN){
+  try{
+   const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),9000);
+   const res=await fetch(p.f(PROBE),{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:"uid=1&password=1&client_id=100067&client_type=2&response_type=token",signal:ctl.signal});
+   clearTimeout(t);
+   if(res.status>=200&&res.status<500){ACTIVE.push(p);log("fallback OK: "+p.n,"ok")}
+  }catch(e){}
+ }
+ $("px").textContent=ACTIVE.length?"usando: "+ACTIVE.map(p=>p.n).join(", "):"nenhum proxy ativo";
+ return ACTIVE.length>0;
 }
 
-/* ---------- nomes ---------- */
 const INSTA=["instaplay","instapleys","instaple","instaplays","instaplayy","instapleyss","instazin","insta"];
 const RAROS=["kyo","zex","vyn","luk","zio","rax","nex","kai","vox","lyx","zek","nyx","oru","aer","ivo","ely","axl","ren","syl","haz","duo","kre","vig","sol","tor","fen","gam","jax","nrx"];
 const CONS="bcdfgjklmnprstvxz",VOW="aeiouy";
@@ -184,7 +177,6 @@ function makeName(){
  const b=INSTA[Math.floor(Math.random()*INSTA.length)];
  return(b+rnd(Math.max(1,12-b.length))).slice(0,12)}
 
-/* ---------- protobuf + aes ---------- */
 function vi(n){const a=[];while(n>127){a.push((n&127)|128);n=Math.floor(n/128)}a.push(n);return a}
 const tg=(f,w)=>vi((f<<3)|w);
 const pStr=(f,s)=>{const b=[...new TextEncoder().encode(s)];return[...tg(f,2),...vi(b.length),...b]};
@@ -193,7 +185,7 @@ const b64b=s=>{const x=atob(s),a=new Uint8Array(x.length);for(let i=0;i<x.length
 function enc(bytes){
  const k=CryptoJS.enc.Base64.parse(KEY_B64),iv=CryptoJS.enc.Base64.parse(IV_B64);
  const c=CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(bytes),k,
-   {iv,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
+  {iv,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
  return b64b(CryptoJS.enc.Base64.stringify(c.ciphertext))}
 function rv(b,i){let r=0,s=0;while(i<b.length){const x=b[i++];r+=(x&127)*Math.pow(2,s);if(!(x&128))break;s+=7}return[r,i]}
 function decode(b){const o=[];let i=0;try{while(i<b.length){let k;[k,i]=rv(b,i);const f=k>>3,w=k&7;
@@ -202,7 +194,6 @@ function decode(b){const o=[];let i=0;try{while(i<b.length){let k;[k,i]=rv(b,i);
   try{s=new TextDecoder("utf-8",{fatal:true}).decode(sl)}catch(e){s=""}o.push({f,w,s})}
  else if(w===5)i+=4;else if(w===1)i+=8;else break}}catch(e){}return o}
 
-/* ---------- fluxo ---------- */
 async function register(name){
  const password=hex(32);
  const bodies=[
@@ -213,9 +204,9 @@ async function register(name){
  let err="";
  for(const b of bodies){
   const r=await call(OAUTH+"/api/v2/oauth:register",{method:"POST",
-    headers:{"Content-Type":"application/json; charset=utf-8","User-Agent":UA_MSDK,"Accept":"application/json"},
-    body:JSON.stringify(b)});
-  const j=(()=>{try{return JSON.parse(r.text)}catch(e){return null}})();
+   headers:{"Content-Type":"application/json; charset=utf-8","Accept":"application/json"},
+   body:JSON.stringify(b)});
+  let j=null;try{j=JSON.parse(r.text)}catch(e){}
   if(j){
    const d=j.data||j;
    const uid=d.uid||d.guest_uid||d.user_id||j.uid;
@@ -230,21 +221,21 @@ async function grant(uid,password){
  const body=new URLSearchParams({uid,password,client_id:"100067",client_secret:SECRET,
   client_type:"2",response_type:"token",grant_type:"guest"}).toString();
  const r=await call(OAUTH+"/oauth/guest/token/grant",{method:"POST",
-  headers:{"Content-Type":"application/x-www-form-urlencoded","User-Agent":UA_MSDK,"Accept":"application/json"},body});
- const j=(()=>{try{return JSON.parse(r.text)}catch(e){return null}})();
+  headers:{"Content-Type":"application/x-www-form-urlencoded","Accept":"application/json"},body});
+ let j=null;try{j=JSON.parse(r.text)}catch(e){}
  const d=j?(j.data||j):{};
  if(!d.access_token)throw new Error("token "+r.status+" "+(r.text||"").slice(0,120));
  return{access_token:String(d.access_token),open_id:String(d.open_id||"")};
 }
 async function major(path,bytes){
  return call(MAJOR+path,{method:"POST",headers:{
-  "Content-Type":"application/octet-stream","User-Agent":UA_GAME,
+  "Content-Type":"application/octet-stream",
   "X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":VER},body:bytes});
 }
 async function info(at){
  try{
   const r=await call("https://ffmconnect.live.gop.garenanow.com/user/account/ff_info?access_token="+encodeURIComponent(at),
-   {method:"GET",headers:{"User-Agent":UA_MSDK,"Accept":"application/json"}});
+   {method:"GET",headers:{"Accept":"application/json"}});
   const j=JSON.parse(r.text);const d=j.data||j;
   const g=k=>{for(const x in d)if(k.includes(x.toLowerCase())&&d[x]!==null)return d[x];return null};
   return{nick:g(["nickname","nick","name"]),level:g(["level"]),gold:g(["gold","coins","coin"]),dia:g(["diamond","gem"])};
@@ -259,11 +250,10 @@ async function createOne(){
   ...pU32(5,102000007),...pU32(6,4),...pU32(7,1),...pU32(13,1),...pStr(15,"pt")]));
  const lr=await major("/MajorLogin",enc([
   ...pStr(1,tok.open_id),...pStr(2,"4"),...pStr(3,tok.access_token),...pStr(4,"4")]));
- let id=null,nick=name,jwt="";
+ let id=null,nick=name;
  if(lr.text){
   const bin=Uint8Array.from(lr.text,c=>c.charCodeAt(0)&255);
   for(const f of decode(bin)){
-   if(f.s&&f.s.startsWith("eyJ")&&f.s.length>60&&!jwt)jwt=f.s;
    if(f.s&&/^\d{8,12}$/.test(f.s)&&!id)id=f.s;
    if(f.s&&f.s.length>=3&&f.s.length<=12&&/^[\x20-\x7E]+$/.test(f.s)&&!/^\d+$/.test(f.s)&&!f.s.startsWith("eyJ"))nick=f.s;
   }
@@ -272,10 +262,9 @@ async function createOne(){
  if(inf&&inf.nick)nick=inf.nick;
  return{id:id||"—",name:nick||name,uid:reg.uid,password:reg.password,region,
   level:inf&&inf.level!=null?inf.level:"—",gold:inf&&inf.gold!=null?inf.gold:"—",
-  dia:inf&&inf.dia!=null?inf.dia:"—",jwt,at:new Date().toLocaleString("pt-BR")};
+  dia:inf&&inf.dia!=null?inf.dia:"—",at:new Date().toLocaleString("pt-BR")};
 }
 
-/* ---------- ui ---------- */
 const accs=[];
 function card(a){
  const d=document.createElement("div");d.className="card";
@@ -315,9 +304,8 @@ $("go").onclick=async()=>{
  if(running)return;
  if(typeof CryptoJS==="undefined"){log("CryptoJS não carregou.","err");return}
  $("go").style.display="none";
- log("testando transporte...");
  const good=await probe();
- if(!good){log("Nenhum proxy respondeu. Cole um proxy próprio ou tente de novo.","err");
+ if(!good){log("Nenhum proxy respondeu. Confira o Worker.","err");
   $("go").style.display="block";return}
  running=true;ok=0;er=0;tr=0;t0=Date.now();bump();
  $("stop").style.display="block";
@@ -332,7 +320,7 @@ function dl(txt,name,mime){const b=new Blob([txt],{type:mime}),u=URL.createObjec
  const a=document.createElement("a");a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
 $("exp").onclick=()=>dl(accs.map(a=>`ID: ${a.id}\nNome: ${a.name}\nRegião: ${a.region}\nUID: ${a.uid}\nSenha: ${a.password}\nNível: ${a.level} Ouro: ${a.gold} Dia: ${a.dia}\n${a.at}\n${"-".repeat(28)}`).join("\n"),"contas_"+sel.value+".txt","text/plain");
 $("csv").onclick=()=>dl("id,nome,regiao,uid,senha,nivel,ouro,diamante\n"+accs.map(a=>[a.id,a.name,a.region,a.uid,a.password,a.level,a.gold,a.dia].join(",")).join("\n"),"contas_"+sel.value+".csv","text/csv");
-log("Painel v2 pronto.");
+log("Painel v3 pronto. Proxy próprio configurado.");
 </script>
 </body>
 </html>
