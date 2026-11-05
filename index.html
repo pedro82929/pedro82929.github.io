@@ -1,202 +1,380 @@
-const HTML = `<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FF · gerador guest</title>
+<title>FF GEN PANEL — OB55</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
-:root{--bg:#0a0a0c;--card:#111116;--line:#26262e;--txt:#ececf2;--dim:#8a8a99;--acc:#ff6b00;--gold:#ffb300;--ok:#2bd67b;--err:#ff4d4d}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;padding:16px;max-width:720px;margin:0 auto}
-h1{font-size:13px;font-weight:500}
-.hdr{display:flex;align-items:center;gap:9px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px}
-.mark{width:32px;height:32px;border-radius:8px;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800}
-.sub{font-size:10.5px;color:var(--dim)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
-.field{display:flex;flex-direction:column;gap:4px}
-.lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
-select,input{background:#17171d;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;font-size:12px;outline:none}
-input#nick{width:140px}input[type=number]{width:60px}
-button{font:inherit;font-size:12px;border-radius:8px;border:1px solid var(--line);background:#1b1b22;color:var(--txt);padding:8px 12px;cursor:pointer}
-button:active{opacity:.7}button:disabled{opacity:.45}
-button.go{background:var(--acc);border-color:transparent;color:#fff;font-weight:700}
-button.ghost{background:transparent;color:var(--dim);padding:4px 8px;font-size:10.5px}
-.panel{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px;margin-bottom:10px}
-.log{background:#14141a;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:10.5px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--dim)}
-.log b{color:var(--ok)}.log i{color:var(--err);font-style:normal}.log u{color:var(--gold);text-decoration:none}
-.acc{border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px;overflow:hidden}
-.top{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#17171d;border-bottom:1px solid var(--line);font-size:11px}
-.ok{color:var(--ok);font-weight:600}
-.fr{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center}
-.fr:last-of-type{border-bottom:0}
-.k{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
-.v{font-weight:600;word-break:break-all;text-align:right}
-.v.big{font-size:14px;color:var(--gold);letter-spacing:.04em}
-.acts{display:flex;gap:6px;padding:9px 12px;border-top:1px solid var(--line)}
-.empty{border:1px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--dim);font-size:11.5px}
-.note{font-size:10px;color:var(--dim);margin-top:8px;line-height:1.6}
-.toast{font-size:10.5px;color:var(--ok);opacity:0;transition:opacity .2s;height:14px}
-.toast.on{opacity:1}.hide{display:none}
+:root{--bg:#0b0f14;--card:#121821;--line:#1e2836;--tx:#e6edf6;--mut:#7d8b9e;--ok:#22c55e;--er:#ef4444;--ac:#3b82f6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:14px}
+h1{font-size:16px;margin:0 0 10px;letter-spacing:.5px}
+h1 b{color:var(--ac)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+label{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;margin-bottom:4px}
+select,input{width:100%;background:#0d131b;border:1px solid var(--line);color:var(--tx);border-radius:7px;padding:9px;font:inherit}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+button{cursor:pointer;border:0;border-radius:8px;padding:11px;font:inherit;font-weight:700}
+#go{background:var(--ok);color:#04120a;width:100%;margin-top:10px}
+#stop{background:var(--er);color:#fff;width:100%;margin-top:6px;display:none}
+.mini{background:#1b2431;color:var(--tx);font-weight:500;padding:8px;font-size:12px}
+.stats{display:flex;gap:14px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+.stats b{color:var(--tx)}
+.card{background:#0d131b;border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12.5px;word-break:break-all}
+.card .id{color:var(--ac);font-weight:700;font-size:13px}
+.card .nm{color:#f0c000;font-weight:700}
+.card .cr{color:var(--mut)}
+.card .cred{background:#0a0f15;border:1px dashed var(--line);border-radius:6px;padding:7px;margin:6px 0}
+details summary{cursor:pointer;color:var(--mut);font-size:11px}
+pre{white-space:pre-wrap;margin:6px 0 0;font-size:11px;color:#9fb0c6}
+#log{height:110px;overflow:auto;font-size:11px;color:var(--mut);background:#080c11;border:1px solid var(--line);border-radius:8px;padding:8px;white-space:pre-wrap}
+.err{color:var(--er)}
+.ok{color:var(--ok)}
 </style>
 </head>
 <body>
-<div class="hdr"><div class="mark">FF</div>
-<div><h1>gerador de conta guest</h1><div class="sub">worker · mesma origem · sem proxy</div></div></div>
+<h1>FF <b>GEN PANEL</b> · OB55 · guest real</h1>
 
-<div class="panel">
-<div class="row">
-<div class="field"><label class="lbl">nick</label><input id="nick" placeholder="auto"></div>
-<div class="field"><label class="lbl">região</label><select id="region">
-<option>BR</option><option>US</option><option>MX</option><option>IND</option><option>SG</option>
-<option>RU</option><option>TH</option><option>VN</option><option>TW</option><option>ME</option><option>CIS</option><option>BD</option>
-</select></div>
-<div class="field"><label class="lbl">qtd</label><input type="number" id="qty" value="1" min="1" max="20"></div>
-<button class="go" id="run">criar</button>
-</div>
-<div class="log" id="log" style="margin-top:10px">[pronto]</div>
-<div class="toast" id="toast"></div>
-<div class="note">register → token → MajorRegister → MajorLogin, tudo pelo próprio Worker.</div>
+<div class="box">
+  <div class="grid">
+    <div><label>Região</label><select id="region"></select></div>
+    <div><label>Estilo de nome</label><select id="nmode">
+      <option value="insta">instaplay / instapleys</option>
+      <option value="rare">raros (curtos, sem número)</option>
+      <option value="mix">misto</option>
+    </select></div>
+    <div><label>Prefixo (opcional)</label><input id="prefix" placeholder="ex: instaplay"></div>
+    <div><label>Qtd (0 = infinito)</label><input id="qty" type="number" value="0" min="0"></div>
+    <div><label>Paralelo</label><input id="conc" type="number" value="3" min="1" max="12"></div>
+    <div><label>Delay ms</label><input id="delay" type="number" value="250" min="0"></div>
+  </div>
+  <button id="go">INICIAR GERAÇÃO</button>
+  <button id="stop">PARAR</button>
 </div>
 
-<div id="out"><div class="empty" id="empty">nenhuma conta ainda</div></div>
+<div class="box">
+  <div class="stats">
+    <span>Criadas: <b id="s-ok">0</b></span>
+    <span>Falhas: <b id="s-er">0</b></span>
+    <span>Tentativas: <b id="s-try">0</b></span>
+    <span>RPM: <b id="s-rpm">0</b></span>
+  </div>
+</div>
+
+<div class="box">
+  <div class="grid">
+    <button class="mini" id="exp">Baixar .txt</button>
+    <button class="mini" id="csv">Baixar .csv</button>
+    <button class="mini" id="clr">Limpar painel</button>
+    <button class="mini" id="cpy">Copiar últimas</button>
+  </div>
+</div>
+
+<div id="out"></div>
+<div id="log"></div>
 
 <script>
-(function(){
-var $=function(i){return document.getElementById(i)};
-var CID="100067",SECRET="2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3";
-var AK="Yg&tc%DEuh6%Zc^8",AV="6oyZDr22E3ychjM%";
-var R="https://ffmconnect.live.gop.garenanow.com/oauth/guest/register";
-var G="https://ffmconnect.live.gop.garenanow.com/oauth/guest/token/grant";
-var MR="https://loginbp.ggblueshark.com/MajorRegister";
-var ML="https://loginbp.ggblueshark.com/MajorLogin";
-var logEl=$("log"),out=$("out"),empty=$("empty"),toastEl=$("toast");
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-function log(t,c){var m={ok:"b",err:"i",warn:"u"}[c]||"";var q=m?"<"+m+">":"",e=m?"</"+m+">":"";
-logEl.innerHTML+="\n["+new Date().toTimeString().slice(0,8)+"] "+q+esc(t)+e;logEl.scrollTop=logEl.scrollHeight}
-function toast(m){toastEl.textContent=m;toastEl.classList.add("on");clearTimeout(toastEl._t);toastEl._t=setTimeout(function(){toastEl.classList.remove("on")},1400)}
-function copy(t){navigator.clipboard.writeText(t).then(function(){toast("copiado")},function(){toast("falhou")})}
-function dl(n,b){var u=URL.createObjectURL(new Blob([b],{type:"text/plain"})),a=document.createElement("a");
-a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},1200)}
-function rnd(n){return Math.floor(Math.random()*n)}
-function dg(n){var s="";for(var i=0;i<n;i++)s+=rnd(10);return s}
-function hex(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
-async function sha(s){return hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s))).toUpperCase()}
-async function hm(k,m){var key=await crypto.subtle.importKey("raw",new TextEncoder().encode(k),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-return hex(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(m)))}
-async function aenc(b){var k=await crypto.subtle.importKey("raw",new TextEncoder().encode(AK),{name:"AES-CBC"},false,["encrypt"]);
-return new Uint8Array(await crypto.subtle.encrypt({name:"AES-CBC",iv:new TextEncoder().encode(AV)},k,b))}
-async function adec(b){var k=await crypto.subtle.importKey("raw",new TextEncoder().encode(AK),{name:"AES-CBC"},false,["decrypt"]);
-return new Uint8Array(await crypto.subtle.decrypt({name:"AES-CBC",iv:new TextEncoder().encode(AV)},k,b))}
-function vi(n){var a=[];while(n>0x7f){a.push((n&0x7f)|0x80);n>>=7}a.push(n);return a}
-function fld(n,v){var b=typeof v==="number"?null:(typeof v==="string"?new TextEncoder().encode(v):v);
-if(b===null)return vi(n<<3).concat(vi(v));
-return vi((n<<3)|2).concat(vi(b.length)).concat(Array.from(b))}
-function enc(o){var ks=Object.keys(o).map(Number).sort(function(a,b){return a-b}),r=[];
-ks.forEach(function(k){r=r.concat(fld(k,o[k]))});return new Uint8Array(r)}
-function rv(b,p){var r=0,s=0,x;do{x=b[p++];r|=(x&0x7f)<<s;s+=7}while(x&0x80);return [r,p]}
-function dec(b){var o={},p=0;
-while(p<b.length){var t=rv(b,p),tg=t[0];p=t[1];var f=tg>>3,w=tg&7;
-if(w===0){var v=rv(b,p);o[f]=v[0];p=v[1]}
-else if(w===2){var l=rv(b,p),n=l[0];p=l[1];o[f]=b.slice(p,p+n);p+=n}else break}
-return o}
-var XK=[0,0,0,2,0,1,7,0,0,0,0,0,2,0,1,7,0,0,0,0,0,2,0,1,7,0,0,0,0,0,2,0];
-function xo(id){var b=new TextEncoder().encode(id),r=new Uint8Array(b.length);
-for(var i=0;i<b.length;i++)r[i]=b[i]^XK[i%XK.length]^48;return r}
-function api(u){return "/api?u="+encodeURIComponent(u)}
+/* ---------- config ---------- */
+const OAUTH   = "https://100067.connect.garena.com";
+const MAJOR   = "https://loginbp.ppmainecoonghj.com";
+const SECRET  = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3";
+const VER     = "OB55";
+const KEY_B64 = "WWcmdGMlREV1aDYlWmNeOA==";
+const IV_B64  = "Nm95WkRyMjJFM3ljaGpNJQ==";
+const UA_MSDK = "GarenaMSDK/4.0.42(SM-A525F;Android 13;pt;BR;)";
+const UA_GAME = "Dalvik/2.1.0 (Linux; U; Android 13; SM-A525F Build/TP1A.220624.014)";
 
-async function criar(region,nick){
-var pwd=String(1+rnd(9))+dg(9),ph=await sha(pwd);
-var body="password="+ph+"&client_type=2&source=2&app_id="+CID;
-var sig=await hm(SECRET,body);
-var r1=await fetch(api(R),{method:"POST",headers:{"Authorization":"Signature "+sig,"Content-Type":"application/x-www-form-urlencoded","Accept":"application/json"},body:body});
-var t1=await r1.text();
-if(r1.status!==200)throw new Error("register "+r1.status+" "+t1.slice(0,70));
-var j1=JSON.parse(t1),uid=j1.uid;if(!uid)throw new Error("register sem uid");
-log("uid "+uid,"ok");
-var gb="uid="+uid+"&password="+ph+"&response_type=token&client_type=2&client_secret="+SECRET+"&client_id="+CID;
-var r2=await fetch(api(G),{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Accept":"application/json"},body:gb});
-var t2=await r2.text();
-if(r2.status!==200)throw new Error("grant "+r2.status+" "+t2.slice(0,70));
-var j2=JSON.parse(t2),at=j2.access_token,oid=j2.open_id;
-if(!at||!oid)throw new Error("grant sem token");
-log("token ok","ok");
-var p={nick:nick,uid:uid,pass:pwd,openId:oid,region:region,at:new Date().toLocaleString("pt-BR"),accountUid:null};
-var h3={"Authorization":"Bearer "+at,"X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":"OB54","Content-Type":"application/octet-stream"};
-try{
-var r3=await fetch(api(MR),{method:"POST",headers:h3,body:await aenc(enc({1:nick,2:at,3:oid,5:102000007,6:4,7:1,13:1,14:xo(oid),15:region,16:1}))});
-if(r3.status!==200)throw new Error("MajorRegister "+r3.status);
-log("perfil criado","ok");
-var p4=enc({3:new Date().toISOString().replace("T"," ").slice(0,19),4:"free fire",5:1,7:"1.128.2",
-8:"Android OS 9 / API-28",9:"Handheld",10:"Vivo",11:"WIFI",12:1080,13:1920,14:"280",
-15:"ARM64 FP ASIMD AES VMH | 2865 | 4",16:3003,17:"Adreno (TM) 640",18:"OpenGL ES 3.1 v1.46",
-19:"Google|"+uid+"-device",20:"0.0.0.0",21:"pt",22:oid,23:"4",24:"Handheld",25:enc({6:55,8:81}),
-29:at,30:1,41:"Vivo",42:"WIFI",57:"7428b253defc164018c604a1ebbfebdf",60:36235,61:31335,62:2519,63:703,
-64:25010,65:26628,66:32992,67:36235,73:3,74:"/data/app/com.dts.freefireth/lib/arm64",76:1,
-77:"5b892aaabd688e571f688053118a162b|/base.apk",78:3,79:2,81:"64",83:"2019118695",86:"OpenGLES2",
-87:16383,88:4,89:new Uint8Array([23,4,21,78,5,15,95,85,26,82,89,67,15,7,22,9,16,105,88,13,5,82,11,47,3,91,39,90,80,90,59,89,5,98]),
-92:13564,93:"android",94:"KqsHTymw5/5GB23YGniUYN2/q47GATrq7eFeRatf0NkwLKEMQ0PK5BKEk72dPflAxUlEBir6Vtey83XqF593qsl8hwY=",
-95:110009,97:1,98:1,99:"2",100:"2"});
-var r4=await fetch(api(ML),{method:"POST",headers:h3,body:await aenc(p4)});
-if(r4.status===200){var raw=new Uint8Array(await r4.arrayBuffer()),pl;
-try{pl=await adec(raw)}catch(e){pl=raw}
-var d=dec(pl);if(d[1]){p.accountUid=String(d[1]);log("UID REAL "+d[1],"ok")}}
-}catch(e){p.erro=e.message;log("final falhou · "+e.message,"warn")}
-return p;
+const REGIONS = ["BR","SAC","US","NA","ME","IND","ID","TH","VN","PK","BD","TW","RU","CIS","EUROPE","SG"];
+const sel = document.getElementById("region");
+REGIONS.forEach(r=>{const o=document.createElement("option");o.value=r;o.textContent=r;sel.appendChild(o);});
+sel.value = "BR";
+
+/* ---------- proxies (CORS) ---------- */
+const PROXIES = [
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+  u => "https://api.cors.lol/?url=" + encodeURIComponent(u),
+  u => "https://thingproxy.freeboard.io/fetch/" + u,
+  u => u
+];
+
+/* ---------- util ---------- */
+const $ = id => document.getElementById(id);
+const rnd = n => { let s=""; const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; for(let i=0;i<n;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; };
+const hex = n => { let s=""; for(let i=0;i<n*2;i++) s+="0123456789ABCDEF"[Math.floor(Math.random()*16)]; return s; };
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : hex(16));
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function log(t, cls){
+  const l=$("log");
+  const d=document.createElement("div");
+  if(cls) d.className=cls;
+  d.textContent="["+new Date().toLocaleTimeString("pt-BR")+"] "+t;
+  l.appendChild(d); l.scrollTop=l.scrollHeight;
+  while(l.childNodes.length>400) l.removeChild(l.firstChild);
 }
 
+async function req(url, opts={}, tries=0){
+  let last;
+  for(let i=0;i<PROXIES.length;i++){
+    try{
+      const r = await fetch(PROXIES[i](url), opts);
+      const text = await r.text();
+      if(r.ok) return {ok:true,status:r.status,text};
+      last = {ok:false,status:r.status,text};
+      if(r.status>=400 && r.status<500 && text) return last;
+    }catch(e){ last={ok:false,status:0,text:String(e)}; }
+  }
+  return last;
+}
+const jparse = t => { try{ return JSON.parse(t); }catch(e){ return null; } };
+function deepFind(obj, keys){
+  let out=null;
+  (function walk(o){
+    if(!o||typeof o!=="object"||out) return;
+    for(const k in o){
+      if(keys.includes(k.toLowerCase()) && typeof o[k]!=="object" && o[k]!==""){ out=o[k]; return; }
+      walk(o[k]);
+    }
+  })(obj);
+  return out;
+}
+
+/* ---------- nomes ---------- */
+const INSTA = ["instaplay","instapleys","instaple","instaplays","instaplayy","instapleyss","insta","instazin"];
+const RAROS = ["kyo","zex","vyn","nrx","luk","zio","rax","nex","kai","vox","lyx","zek","nyx","oru","aer","ivo","ely","axl","ren","syl","haz","duo","kre","vig","sol","tor","fen","gam","izq","jax"];
+const CONS="bcdfgjklmnprstvxz", VOW="aeiouy";
+function rareName(){
+  const r=Math.random();
+  if(r<.4) return RAROS[Math.floor(Math.random()*RAROS.length)];
+  const n = 3+Math.floor(Math.random()*3);
+  let s="";
+  for(let i=0;i<n;i++) s += (i%2===0? CONS[Math.floor(Math.random()*CONS.length)] : VOW[Math.floor(Math.random()*VOW.length)]);
+  return s;
+}
+function makeName(){
+  const mode=$("nmode").value, pref=$("prefix").value.trim();
+  if(pref) return (pref + rnd(Math.max(1, 12-pref.length))).slice(0,12);
+  if(mode==="rare") return rareName();
+  if(mode==="mix" && Math.random()<.35) return rareName();
+  const base = INSTA[Math.floor(Math.random()*INSTA.length)];
+  return (base + rnd(Math.max(1, 12-base.length))).slice(0,12);
+}
+
+/* ---------- protobuf ---------- */
+function vi(n){ const a=[]; while(n>127){ a.push((n&127)|128); n=Math.floor(n/128); } a.push(n); return a; }
+const tg=(f,w)=>vi((f<<3)|w);
+function pStr(f,s){ const b=[...new TextEncoder().encode(s)]; return [...tg(f,2),...vi(b.length),...b]; }
+function pU32(f,n){ return [...tg(f,0),...vi(n)]; }
+function enc(bytes){
+  const key = CryptoJS.enc.Base64.parse(KEY_B64);
+  const iv  = CryptoJS.enc.Base64.parse(IV_B64);
+  const wa  = CryptoJS.lib.WordArray.create(new Uint8Array(bytes));
+  const c   = CryptoJS.AES.encrypt(wa, key, {iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
+  return new Uint8Array(CryptoJS.enc.Base64.parse(c.toString(CryptoJS.format.Base64)).words.length
+    ? Uint8Array.from(atob(c.toString(CryptoJS.format.Base64)), ch=>ch.charCodeAt(0))
+    : new Uint8Array());
+}
+function readVarint(b,i){ let r=0,s=0; while(i<b.length){ const x=b[i++]; r+=(x&127)*Math.pow(2,s); if(!(x&128)) break; s+=7; } return [r,i]; }
+function decodeProto(b){
+  const out=[]; let i=0;
+  try{
+    while(i<b.length){
+      let k; [k,i]=readVarint(b,i);
+      const f=k>>3, w=k&7;
+      if(w===0){ let v; [v,i]=readVarint(b,i); out.push({f,w,v}); }
+      else if(w===2){ let len; [len,i]=readVarint(b,i); const slice=b.slice(i,i+len); i+=len;
+        let s=""; try{ s=new TextDecoder("utf-8",{fatal:true}).decode(slice); }catch(e){ s=""; }
+        out.push({f,w,s,raw:slice}); }
+      else if(w===5){ i+=4; } else if(w===1){ i+=8; } else break;
+    }
+  }catch(e){}
+  return out;
+}
+
+/* ---------- fluxo ---------- */
+async function register(region, name){
+  const password = hex(32);
+  const payload = {
+    client_id:100067, app_id:100067, client_secret:SECRET, client_type:2,
+    password, email:"", device_id:uuid(), response_type:"token"
+  };
+  const r = await req(OAUTH + "/api/v2/oauth:register", {
+    method:"POST",
+    headers:{"Content-Type":"application/json; charset=utf-8","User-Agent":UA_MSDK,"Accept":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  const j = jparse(r.text) || {};
+  const uid = deepFind(j,["uid","guest_uid","user_id"]);
+  const pw  = deepFind(j,["password"]) || password;
+  if(!uid) throw new Error("register " + r.status + " " + (r.text||"").slice(0,140));
+  return {uid:String(uid), password:String(pw)};
+}
+
+async function grant(uid, password){
+  const body = new URLSearchParams({uid, password, client_id:"100067", client_secret:SECRET,
+    client_type:"2", response_type:"token", grant_type:"guest"}).toString();
+  const r = await req(OAUTH + "/oauth/guest/token/grant", {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded","User-Agent":UA_MSDK,"Accept":"application/json"},
+    body
+  });
+  const j = jparse(r.text) || {};
+  const data = j.data || j;
+  const at = deepFind(data,["access_token"]);
+  const oid = deepFind(data,["open_id"]);
+  if(!at) throw new Error("token " + r.status + " " + (r.text||"").slice(0,140));
+  return {access_token:String(at), open_id:String(oid||"")};
+}
+
+async function major(path, bytes){
+  const r = await req(MAJOR + path, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/octet-stream","User-Agent":UA_GAME,
+      "X-Unity-Version":"2018.4.11f1","X-GA":"v1 1","ReleaseVersion":VER,
+      "Accept-Encoding":"gzip"
+    },
+    body:bytes
+  });
+  return r;
+}
+
+async function ffInfo(access_token){
+  try{
+    const r = await req("https://ffmconnect.live.gop.garenanow.com/user/account/ff_info?access_token="+encodeURIComponent(access_token),
+      {method:"GET", headers:{"User-Agent":UA_MSDK,"Accept":"application/json"}});
+    const j = jparse(r.text);
+    if(!j) return null;
+    const d = j.data || j;
+    return {
+      nick: deepFind(d,["nickname","nick","name"]),
+      level: deepFind(d,["level","account_level"]),
+      gold: deepFind(d,["gold","coins","coin"]),
+      dia: deepFind(d,["diamond","diamonds","gem","gems"])
+    };
+  }catch(e){ return null; }
+}
+
+async function createOne(){
+  const region = sel.value;
+  const name = makeName();
+
+  const reg = await register(region, name);
+  const tok = await grant(reg.uid, reg.password);
+
+  // entra na conta -> fica pesquisável
+  const regBody = enc([
+    ...pStr(1, name), ...pStr(2, tok.access_token), ...pStr(3, tok.open_id),
+    ...pU32(5, 102000007), ...pU32(6, 4), ...pU32(7, 1),
+    ...pU32(13, 1), ...pStr(15, "pt")
+  ]);
+  await major("/MajorRegister?region="+region, regBody);
+
+  const loginBody = enc([
+    ...pStr(1, tok.open_id), ...pStr(2, "4"),
+    ...pStr(3, tok.access_token), ...pStr(4, "4")
+  ]);
+  const lr = await major("/MajorLogin", loginBody);
+
+  let account_id = null, nick = name, jwt = null;
+  if(lr.ok && lr.text){
+    const bin = Uint8Array.from(lr.text, c=>c.charCodeAt(0) & 0xff);
+    const fields = decodeProto(bin);
+    for(const f of fields){
+      if(f.s && f.s.startsWith("eyJ") && f.s.length>60 && !jwt) jwt = f.s;
+      if(f.s && /^\d{8,12}$/.test(f.s) && !account_id) account_id = f.s;
+      if(f.s && f.s.length>=3 && f.s.length<=12 && /^[\x20-\x7E]+$/.test(f.s) && !/^\d+$/.test(f.s) && !f.s.startsWith("eyJ")) nick = f.s;
+    }
+  }
+
+  const info = await ffInfo(tok.access_token);
+  if(info && info.nick) nick = info.nick;
+
+  return {
+    id: account_id || "—",
+    name: nick || name,
+    uid: reg.uid,
+    password: reg.password,
+    region,
+    level: info && info.level != null ? info.level : "—",
+    gold: info && info.gold != null ? info.gold : "—",
+    dia: info && info.dia != null ? info.dia : "—",
+    jwt: jwt || "",
+    at: new Date().toLocaleString("pt-BR")
+  };
+}
+
+/* ---------- render ---------- */
+const accs = [];
 function card(a){
-var d=document.createElement("div");d.className="acc";
-var txt="NICK: "+a.nick+"\nID: "+(a.accountUid||"nao confirmado")+"\nSENHA: "+a.pass+"\nREGIAO: "+a.region+"\nGARENA UID: "+a.uid+"\nOPEN_ID: "+a.openId+"\n"+a.at;
-d.innerHTML='<div class="top"><span>'+(a.accountUid?'<span class="ok">criada</span>':'<span style="color:var(--gold)">parcial</span>')+
-'</span><span style="font-size:10px;color:var(--dim)">'+esc(a.at)+'</span></div>'+
-'<div class="fr"><span class="k">nick</span><span class="v">'+esc(a.nick)+'</span></div>'+
-'<div class="fr"><span class="k">id</span><span class="v big">'+esc(a.accountUid||"—")+'</span></div>'+
-'<div class="fr"><span class="k">senha</span><span class="v">'+esc(a.pass)+'</span></div>'+
-'<div class="fr"><span class="k">garena uid</span><span class="v">'+esc(a.uid)+'</span></div>'+
-'<div class="acts"><button class="ghost" data-c="'+esc(txt)+'">copiar</button><button class="ghost" data-d="'+esc(txt)+'">baixar</button></div>';
-return d;
+  const d=document.createElement("div"); d.className="card";
+  d.innerHTML = `
+    <div>ID: <span class="id">${a.id}</span> <span class="cr">· ${a.region}</span></div>
+    <div>Nome: <span class="nm">${a.name}</span></div>
+    <div class="cred">UID: ${a.uid}<br>Senha: ${a.password}</div>
+    <div class="cr">Nível: ${a.level} · Ouro: ${a.gold} · Diamante: ${a.dia}</div>
+    <details><summary>como logar</summary><pre>1) Instale o Free Fire OB55 e abra.
+2) Toque em "Convidado/Guest" na tela de login.
+3) Região: ${a.region}
+4) UID: ${a.uid}
+5) Senha: ${a.password}
+6) Entre. O ID ${a.id} já está ativo e aparece na busca.</pre></details>`;
+  $("out").prepend(d);
 }
-out.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
-if(b.dataset.c)copy(b.dataset.c);
-if(b.dataset.d){dl("conta_"+((b.dataset.d.match(/ID: (\d+)/)||[,"x"])[1])+".txt",b.dataset.d);toast("baixado")}});
 
-function nk(){var w=["Sniper","Lobo","Ghost","Fenix","Draco","Titan","Blaze","Sombra","Caveira","Pantera","Cobra","Alfa","Zero","Orion","Hades"];
-return "x"+w[rnd(w.length)]+(10+rnd(89))}
+let running=false, ok=0, er=0, tr=0, t0=0;
+function bump(){
+  $("s-ok").textContent=ok; $("s-er").textContent=er; $("s-try").textContent=tr;
+  const m=(Date.now()-t0)/60000;
+  $("s-rpm").textContent = m>0 ? Math.round(ok/m) : 0;
+}
 
-$("run").addEventListener("click",async function(){
-var btn=this;btn.disabled=true;
-var qty=Math.max(1,Math.min(20,parseInt($("qty").value||"1",10)));
-var region=$("region").value,base=$("nick").value.trim(),ok=0;
-log("gerando "+qty+" · "+region);
-for(var i=0;i<qty;i++){var n=qty===1&&base?base:(base?base+i+1:nk());
-try{var a=await criar(region,n);empty.classList.add("hide");out.insertBefore(card(a),out.firstChild);ok++}
-catch(e){log("falhou · "+e.message,"err")}}
-log(ok+"/"+qty+" ok","ok");btn.disabled=false;
-});
-})();
+async function worker(){
+  const conc = Math.max(1, parseInt($("conc").value)||1);
+  const dl = Math.max(0, parseInt($("delay").value)||0);
+  const limit = parseInt($("qty").value)||0;
+  while(running){
+    if(limit && tr>=limit) { running=false; break; }
+    tr++; bump();
+    try{
+      const a = await createOne();
+      ok++; accs.push(a); card(a); bump();
+      log("OK " + a.id + " " + a.name, "ok");
+    }catch(e){
+      er++; bump();
+      log("FALHA " + String(e.message||e).slice(0,180), "err");
+    }
+    if(dl) await sleep(dl + Math.random()*dl);
+  }
+  if(!running) { $("go").style.display="block"; $("stop").style.display="none"; }
+}
+
+$("go").onclick = () => {
+  if(running) return;
+  if(typeof CryptoJS==="undefined"){ log("CryptoJS não carregou — verifique a internet.","err"); return; }
+  running=true; ok=0; er=0; tr=0; t0=Date.now(); bump();
+  $("go").style.display="none"; $("stop").style.display="block";
+  log("Iniciado · região "+sel.value+" · estilo "+$("nmode").value);
+  const n = Math.max(1, parseInt($("conc").value)||1);
+  for(let i=0;i<n;i++) worker();
+};
+$("stop").onclick = () => { running=false; log("Parando..."); };
+$("clr").onclick = () => { $("out").innerHTML=""; accs.length=0; };
+$("cpy").onclick = () => navigator.clipboard.writeText(accs.slice(0,20).map(a=>`ID ${a.id} | ${a.name} | ${a.uid} | ${a.password}`).join("\n"));
+$("exp").onclick = () => {
+  const t = accs.map(a=>`ID: ${a.id}\nNome: ${a.name}\nRegião: ${a.region}\nUID: ${a.uid}\nSenha: ${a.password}\nNível: ${a.level} Ouro: ${a.gold} Dia: ${a.dia}\n${a.at}\n${"-".repeat(30)}`).join("\n");
+  dl(t, "contas_"+sel.value+"_"+Date.now()+".txt", "text/plain");
+};
+$("csv").onclick = () => {
+  const t = "id,nome,regiao,uid,senha,nivel,ouro,diamante\n" + accs.map(a=>[a.id,a.name,a.region,a.uid,a.password,a.level,a.gold,a.dia].join(",")).join("\n");
+  dl(t, "contas_"+sel.value+".csv", "text/csv");
+};
+function dl(txt, name, mime){
+  const b=new Blob([txt],{type:mime}); const u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+log("Painel pronto. Configure e clique em INICIAR.");
 </script>
 </body>
-</html>`;
-
-export default {
-  async fetch(req) {
-    const u = new URL(req.url);
-    if (u.pathname === "/api") {
-      const t = decodeURIComponent(u.searchParams.get("u") || "");
-      if (!t) return new Response("sem url", { status: 400 });
-      const h = new Headers(req.headers);
-      h.delete("host"); h.delete("origin"); h.delete("referer");
-      const r = await fetch(t, {
-        method: req.method,
-        headers: h,
-        body: req.method === "GET" ? null : req.body
-      });
-      const out = new Response(r.body, { status: r.status, headers: r.headers });
-      out.headers.set("access-control-allow-origin", "*");
-      return out;
-    }
-    return new Response(HTML, {
-      headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" }
-    });
-  }
-};
+</html>
